@@ -1,0 +1,159 @@
+@page "/admin/bootstrap"
+@rendermode InteractiveServer
+
+@using AuntiesRecipe.Infrastructure.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+
+@inject IConfiguration Configuration
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject NavigationManager Navigation
+
+<PageTitle>Admin bootstrap</PageTitle>
+
+<div class="row justify-content-center mt-4">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card simple-card">
+            <div class="card-body">
+                <h1 class="h2 mb-3 text-center">Admin bootstrap (one-time)</h1>
+
+                <p class="text-muted text-center">
+                    For portfolio demos: create the first owner/admin account by providing the bootstrap code.
+                </p>
+
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <div class="alert alert-info">@_message</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <div class="alert alert-danger">@_error</div>
+                }
+
+                @if (_adminExists)
+                {
+                    <div class="alert alert-secondary">An Admin user already exists. You can close this page.</div>
+                    <div class="text-center">
+                        <NavLink class="btn btn-primary" href="/login">Go to login</NavLink>
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="_model" OnValidSubmit="CreateAdminAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Bootstrap code</label>
+                            <InputText class="form-control" @bind-Value="_model.Code" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Admin email</label>
+                            <InputText class="form-control" type="email" @bind-Value="_model.Email" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Admin password</label>
+                            <InputText class="form-control" type="password" @bind-Value="_model.Password" />
+                        </div>
+
+                        <button class="btn btn-success w-100" type="submit" disabled="@_submitting">Create admin</button>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _adminExists;
+    private bool _submitting;
+
+    private string? _error;
+    private string? _message;
+
+    private AdminModel _model = new();
+
+    private sealed class AdminModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Code { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MinLength(6)]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _adminExists = await AdminUserExistsAsync();
+    }
+
+    private async Task<bool> AdminUserExistsAsync()
+    {
+        if (!await RoleManager.RoleExistsAsync("Admin"))
+        {
+            return false;
+        }
+
+        var admins = await UserManager.GetUsersInRoleAsync("Admin");
+        return admins.Count > 0;
+    }
+
+    private async Task CreateAdminAsync()
+    {
+        _error = null;
+        _message = null;
+        _submitting = true;
+
+        try
+        {
+            var expected = Configuration["AdminBootstrap:Code"];
+            if (string.IsNullOrWhiteSpace(expected) || !string.Equals(_model.Code, expected, StringComparison.Ordinal))
+            {
+                _error = "Invalid bootstrap code.";
+                return;
+            }
+
+            if (!await RoleManager.RoleExistsAsync("Admin"))
+            {
+                await RoleManager.CreateAsync(new IdentityRole("Admin"));
+            }
+
+            if (await AdminUserExistsAsync())
+            {
+                _adminExists = true;
+                _message = "Admin already created.";
+                return;
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = _model.Email,
+                Email = _model.Email,
+            };
+
+            var result = await UserManager.CreateAsync(user, _model.Password);
+            if (!result.Succeeded)
+            {
+                _error = string.Join("; ", result.Errors.Select(e => e.Description));
+                return;
+            }
+
+            await UserManager.AddToRoleAsync(user, "Admin");
+
+            _adminExists = true;
+            _message = "Admin account created. Redirecting to login…";
+
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

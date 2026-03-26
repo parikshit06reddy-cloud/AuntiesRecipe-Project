@@ -1,0 +1,152 @@
+@page "/"
+@rendermode InteractiveServer
+@using AuntiesRecipe.Application.Abstractions
+@using AuntiesRecipe.Application.Menu
+@inject IMenuService MenuService
+@inject IBusinessProfileService BusinessProfileService
+@using Microsoft.Extensions.Configuration
+
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<PageTitle>@_businessName</PageTitle>
+
+<div class="landing-hero" style="background-image:url('@_heroImagePath')">
+    <div class="landing-hero-overlay">
+        <div class="container py-5">
+            <h1 class="display-5 fw-bold text-white mb-2">@_businessName</h1>
+            <p class="lead text-white mb-4">@_tagline</p>
+
+            <NavLink class="btn btn-light btn-lg" href="/menu">View Menu</NavLink>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-7">
+            <h2 class="h3 mb-3">About the business</h2>
+            <p class="text-muted">@_aboutText</p>
+
+            <div class="mt-4">
+                <h3 class="h5">Address</h3>
+                <div class="text-muted">
+                    @_addressLine1<br />
+                    @_addressLine2
+                </div>
+
+                <h3 class="h5 mt-3">Contact</h3>
+                <div class="text-muted">
+                    Phone: @_phone<br />
+                    Email: @_email
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h3 class="h5">Want to place an order?</h3>
+                <div class="text-muted">Use the menu page to add items to your cart and check out.</div>
+                <div class="mt-2">
+                    <NavLink class="btn btn-primary" href="/menu">Browse offers</NavLink>
+                    <NavLink class="btn btn-outline-primary ms-2" href="/cart">Go to cart</NavLink>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            @if (!string.IsNullOrWhiteSpace(_mapEmbedUrl))
+            {
+                <h2 class="h3 mb-3">Location</h2>
+                <div class="landing-map rounded-3 overflow-hidden border">
+                    <iframe
+                        src="@_mapEmbedUrl"
+                        width="100%"
+                        height="320"
+                        style="border:0;"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h2 class="h3 mb-3">Daily specials</h2>
+
+        @if (_todaySpecial is null)
+        {
+            <div class="text-muted">Loading today’s special…</div>
+        }
+        else
+        {
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card h-100 landing-card">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-1">Today’s offer</div>
+                            <div class="fs-5 fw-bold text-danger mb-2">$7.99</div>
+
+                            <div class="fw-semibold mb-2">@_todaySpecial.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(_todaySpecial.Description))
+                            {
+                                <div class="text-muted small mb-3">@_todaySpecial.Description</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    private const decimal DailySpecialPrice = 7.99m;
+
+    private string _businessName = "Aunties Recipe";
+    private string _tagline = "Mexican-style juices & daily specials";
+
+    private string _aboutText = "This demo portfolio site shows a real-world style layout: landing content, a menu, cart, checkout, and admin order viewing.";
+
+    private string _heroImagePath = "/images/hero.png";
+
+    private string _addressLine1 = "Street address here";
+    private string _addressLine2 = "Aubrey, TX 76227";
+    private string _phone = "(000) 000-0000";
+    private string _email = "hello@example.com";
+
+    private string? _mapEmbedUrl;
+
+    private MenuItemDto? _todaySpecial;
+
+    protected override void OnInitialized()
+    {
+        _businessName = Configuration["Business:Name"] ?? _businessName;
+        _tagline = Configuration["Business:Tagline"] ?? _tagline;
+        _heroImagePath = Configuration["Business:HeroImagePath"] ?? _heroImagePath;
+        _mapEmbedUrl = Configuration["Business:MapEmbedUrl"];
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await BusinessProfileService.GetAsync();
+        _aboutText = profile.AboutText;
+        _addressLine1 = profile.AddressLine1;
+        _addressLine2 = profile.AddressLine2;
+        _phone = profile.Phone;
+        _email = profile.Email;
+
+        var menu = await MenuService.GetMenuAsync();
+        var flat = menu.SelectMany(c => c.Items).OrderBy(i => i.Id).ToList();
+
+        if (flat.Count > 0)
+        {
+            var idx = DateTime.UtcNow.DayOfYear % flat.Count;
+            _todaySpecial = flat[idx];
+        }
+        else
+        {
+            _todaySpecial = null;
+        }
+    }
+}

@@ -1,0 +1,132 @@
+@page "/cart"
+@rendermode InteractiveServer
+@using AuntiesRecipe.Application.Abstractions
+@using AuntiesRecipe.Application.Cart
+@using AuntiesRecipe.Web.Services
+
+@inject ICartService CartService
+@inject CartSessionService CartSession
+
+<PageTitle>Cart</PageTitle>
+
+<div class="simple-page-header">
+    <h1 class="mb-2">Your Cart</h1>
+    <p class="text-muted mb-0">Review your drinks and adjust quantities before checkout.</p>
+</div>
+
+@if (_loading)
+{
+    <p>Loading cart…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    @if (_cart.Items.Count == 0)
+    {
+        <div class="card simple-card">
+            <div class="card-body">
+                <div class="alert alert-secondary mb-3">Your cart is empty.</div>
+                <NavLink class="btn btn-primary" href="/menu">Browse menu</NavLink>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card simple-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div class="fw-semibold">Shopping Cart</div>
+                            <div class="text-muted small">Price</div>
+                        </div>
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var item in _cart.Items)
+                            {
+                                <li class="cart-row-amz">
+                                    <div class="cart-row-main">
+                                        <div class="fw-semibold mb-1">@item.Name</div>
+                                        <div class="small text-muted mb-2">
+                                            Unit price: @item.UnitPrice.ToString("C")
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="() => DecreaseAsync(item.MenuItemId, item.Quantity)">-</button>
+                                            <span class="cart-qty-pill">@item.Quantity</span>
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" @onclick="() => IncreaseAsync(item.MenuItemId, item.Quantity)">+</button>
+                                            <button class="btn btn-sm btn-link text-danger text-decoration-none" @onclick="() => RemoveAsync(item.MenuItemId)" type="button">Delete</button>
+                                        </div>
+                                    </div>
+                                    <div class="cart-row-price fw-semibold">
+                                        @((item.UnitPrice * item.Quantity).ToString("C"))
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                        <div class="d-flex align-items-center justify-content-end border-top pt-3 mt-3">
+                            <div class="fw-semibold">Subtotal (@_cart.Items.Sum(x => x.Quantity) item(s)): @_cart.Subtotal.ToString("C")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card simple-card">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Order Summary</h2>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fs-5 fw-semibold">@_cart.Subtotal.ToString("C")</span>
+                        </div>
+                        <NavLink class="btn btn-success w-100 mb-2" href="/checkout">Proceed to checkout</NavLink>
+                        <NavLink class="btn btn-outline-secondary w-100" href="/menu">Continue shopping</NavLink>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private CartDto _cart = new CartDto(string.Empty, Array.Empty<CartItemDto>(), 0m);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var cartId = CartSession.GetOrCreateCartId();
+            _cart = await CartService.GetCartAsync(cartId);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task IncreaseAsync(int menuItemId, int currentQty) => await SetQtyAndRefreshAsync(menuItemId, currentQty + 1);
+
+    private async Task DecreaseAsync(int menuItemId, int currentQty) => await SetQtyAndRefreshAsync(menuItemId, Math.Max(0, currentQty - 1));
+
+    private async Task RemoveAsync(int menuItemId)
+    {
+        var cartId = CartSession.GetOrCreateCartId();
+
+        await CartService.RemoveFromCartAsync(cartId, menuItemId);
+        _cart = await CartService.GetCartAsync(cartId);
+    }
+
+    private async Task SetQtyAndRefreshAsync(int menuItemId, int qty)
+    {
+        var cartId = CartSession.GetOrCreateCartId();
+        await CartService.SetQuantityAsync(cartId, menuItemId, qty);
+        _cart = await CartService.GetCartAsync(cartId);
+    }
+}

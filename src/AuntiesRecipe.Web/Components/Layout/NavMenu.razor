@@ -1,0 +1,86 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<header class="site-header sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-semibold" href="">Aunties Recipe</a>
+
+            <button
+                class="navbar-toggler"
+                type="button"
+                aria-controls="mainNavbar"
+                aria-expanded="@_menuOpen"
+                aria-label="Toggle navigation"
+                @onclick="ToggleMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="@(_menuOpen ? "collapse navbar-collapse show" : "collapse navbar-collapse")" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Home</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="menu">Menu</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="cart">Cart</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="checkout">Checkout</NavLink>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <AuthorizeView Roles="Admin">
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="admin/manage">Admin Manage</NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="admin/orders">Admin Orders</NavLink>
+                        </li>
+                    </AuthorizeView>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/auth/logout">Logout</a>
+                            </li>
+                        </Authorized>
+                        <NotAuthorized>
+                            <li class="nav-item">
+                                <NavLink class="nav-link" href="login">Login</NavLink>
+                            </li>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+
+@code {
+    private bool _menuOpen;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _menuOpen = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleMenu()
+    {
+        _menuOpen = !_menuOpen;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,0 +1,76 @@
+@page "/admin/orders"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+
+@using AuntiesRecipe.Application.Abstractions
+@using Microsoft.AspNetCore.Authorization
+
+@inject IOrderService OrderService
+
+<PageTitle>Admin orders</PageTitle>
+
+<h1 class="mb-3">Admin Orders</h1>
+
+@if (_loading)
+{
+    <p>Loading orders…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    @if (_orders.Count == 0)
+    {
+        <div class="alert alert-secondary">No orders yet.</div>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Created (UTC)</th>
+                    <th>Pickup</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in _orders)
+                {
+                    <tr>
+                        <td>@o.OrderId</td>
+                        <td>@o.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@o.PickupName (@o.PickupPhone)</td>
+                        <td>@o.Total.ToString("C")</td>
+                        <td>@o.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private IReadOnlyList<AuntiesRecipe.Application.Orders.OrderSummaryDto> _orders = Array.Empty<AuntiesRecipe.Application.Orders.OrderSummaryDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _orders = await OrderService.GetOrdersForAdminAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

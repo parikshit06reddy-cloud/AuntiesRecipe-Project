@@ -1,0 +1,201 @@
+@page "/checkout"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using AuntiesRecipe.Application.Abstractions
+@using AuntiesRecipe.Application.Cart
+@using Microsoft.AspNetCore.Components.Authorization
+@using AuntiesRecipe.Web.Services
+
+@inject ICartService CartService
+@inject CartSessionService CartSession
+@inject NavigationManager Nav
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<PageTitle>Checkout</PageTitle>
+
+<div class="simple-page-header">
+    <h1 class="mb-2">Checkout</h1>
+    <p class="text-muted mb-0">Enter pickup details and place your order.</p>
+</div>
+
+@if (_loading)
+{
+    <p>Loading checkout…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card simple-card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Pickup details</h5>
+
+                    <EditForm Model="_request">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <InputText class="form-control" @bind-Value="_request.PickupName" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <InputText class="form-control" @bind-Value="_request.PickupPhone" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes (optional)</label>
+                            <InputTextArea class="form-control" @bind-Value="_request.Notes" />
+                        </div>
+
+                        <button class="btn btn-primary w-100" disabled="@(_submitting || _cart.Items.Count == 0)" type="button" @onclick="PlaceOrderAsync">
+                            @(_submitting ? "Placing order..." : "Place order")
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card simple-card">
+                <div class="card-body">
+                    <h5 class="card-title">Order summary</h5>
+
+                    @if (_cart.Items.Count == 0)
+                    {
+                        <div class="alert alert-secondary mb-3">Your cart is empty.</div>
+                        <NavLink class="btn btn-outline-primary w-100" href="/menu">Go to menu</NavLink>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-3">
+                            @foreach (var item in _cart.Items)
+                            {
+                                <li class="d-flex align-items-center justify-content-between mb-2">
+                                    <span>
+                                        <span class="fw-semibold">@item.Quantity</span> x @item.Name
+                                        <span class="text-muted">(@item.UnitPrice.ToString("C"))</span>
+                                    </span>
+                                    <span class="fw-semibold">@((item.UnitPrice * item.Quantity).ToString("C"))</span>
+                                </li>
+                            }
+                        </ul>
+
+                        <div class="border-top pt-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="text-muted">Subtotal</div>
+                                <div class="fw-semibold">@_cart.Subtotal.ToString("C")</div>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="text-muted">Tax (@(_taxRate * 100m)% )</div>
+                                <div class="fw-semibold">@CalculateTax(_cart.Subtotal).ToString("C")</div>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="text-muted">Total</div>
+                                <div class="fs-5 fw-semibold">@((_cart.Subtotal + CalculateTax(_cart.Subtotal)).ToString("C"))</div>
+                            </div>
+                        </div>
+                    }
+
+                    @* After placing an order we navigate to the order summary page. *@
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private decimal _taxRate = 0.20m;
+
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private bool _loading = true;
+    private string? _error;
+    private CartDto _cart = new CartDto(string.Empty, Array.Empty<CartItemDto>(), 0m);
+
+    private bool _submitting;
+    private CheckoutRequestModel _request = new();
+
+    private sealed class CheckoutRequestModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string PickupName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string PickupPhone { get; set; } = string.Empty;
+
+        public string? Notes { get; set; }
+
+        public CheckoutRequestDto ToDto() => new(PickupName, PickupPhone, Notes);
+    }
+
+    protected override void OnInitialized()
+    {
+        // Configurable tax rate (e.g. 0.20 = 20%)
+        var configured = Configuration.GetValue<decimal?>("Checkout:TaxRate");
+        if (configured is not null && configured >= 0m && configured <= 1m)
+        {
+            _taxRate = configured.Value;
+        }
+    }
+
+    private decimal CalculateTax(decimal subtotal)
+    {
+        if (subtotal <= 0m) return 0m;
+        return Math.Round(subtotal * _taxRate, 2, MidpointRounding.AwayFromZero);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var cartId = CartSession.GetOrCreateCartId();
+            _cart = await CartService.GetCartAsync(cartId);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PlaceOrderAsync()
+    {
+        _submitting = true;
+        _error = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_request.PickupName) || string.IsNullOrWhiteSpace(_request.PickupPhone))
+            {
+                _error = "Please enter a valid name and phone number.";
+                return;
+            }
+
+            var cartId = CartSession.GetOrCreateCartId();
+
+            var authState = await AuthenticationStateTask;
+            var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var orderId = await CartService.CheckoutAsync(cartId, _request.ToDto(), userId);
+            // Force a full navigation so the interactive router reliably lands on the order page.
+            Nav.NavigateTo($"/order/{orderId}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

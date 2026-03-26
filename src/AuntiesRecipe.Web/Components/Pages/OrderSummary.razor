@@ -1,0 +1,128 @@
+@page "/order/{OrderId:int}"
+@rendermode InteractiveServer
+@using AuntiesRecipe.Application.Abstractions
+
+@inject IOrderService OrderService
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<PageTitle>Order Confirmation</PageTitle>
+
+<div class="simple-page-header">
+    <h1 class="mb-2 text-center">Order Confirmation</h1>
+    <p class="text-muted mb-0 text-center">Show this token at pickup.</p>
+</div>
+
+@if (_loading)
+{
+    <p>Loading order…</p>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_order is null)
+{
+    <div class="alert alert-secondary text-center">Order not found.</div>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-7">
+            <div class="card simple-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-3 text-center">Customer details</h2>
+
+                    <div class="mb-2 text-center">
+                        <div class="text-muted small">Name</div>
+                        <div class="fw-semibold">@_order.PickupName</div>
+                    </div>
+                    <div class="mb-2 text-center">
+                        <div class="text-muted small">Phone</div>
+                        <div class="fw-semibold">@_order.PickupPhone</div>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <div class="text-muted small">Date</div>
+                        <div class="fw-semibold">@_order.TokenDateUtc.ToString("yyyy-MM-dd")</div>
+                    </div>
+
+                    <h2 class="h5 mb-2 text-center">Token</h2>
+                    <div class="display-5 fw-bold mb-4 text-center">#@_order.DailyTokenNumber</div>
+
+                    <h3 class="h6 mb-2 text-center">Items</h3>
+                    <ul class="list-unstyled mb-3">
+                        @foreach (var item in _order.Items)
+                        {
+                            <li class="d-flex align-items-center justify-content-between mb-2">
+                                <span>
+                                    <span class="fw-semibold">@item.Quantity</span> x @item.Name
+                                    <span class="text-muted">(@item.UnitPrice.ToString("C"))</span>
+                                </span>
+                                <span class="fw-semibold">@((item.UnitPrice * item.Quantity).ToString("C"))</span>
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="border-top pt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="text-muted">Subtotal</div>
+                            <div class="fw-semibold">@_order.Total.ToString("C")</div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="text-muted">Tax (@(_taxRate * 100m)%)</div>
+                            <div class="fw-semibold">@CalculateTax(_order.Total).ToString("C")</div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="text-muted">Total</div>
+                            <div class="fs-5 fw-semibold">@((_order.Total + CalculateTax(_order.Total)).ToString("C"))</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <NavLink class="btn btn-outline-primary w-100" href="/menu">Back to menu</NavLink>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int OrderId { get; set; }
+
+    private decimal _taxRate = 0.20m;
+    private bool _loading = true;
+    private string? _error;
+    private AuntiesRecipe.Application.Orders.OrderSummaryDto? _order;
+
+    protected override void OnInitialized()
+    {
+        var configured = Configuration.GetValue<decimal?>("Checkout:TaxRate");
+        if (configured is not null && configured >= 0m && configured <= 1m)
+        {
+            _taxRate = configured.Value;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _order = await OrderService.GetOrderByIdAsync(OrderId);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private decimal CalculateTax(decimal subtotal)
+    {
+        if (subtotal <= 0m) return 0m;
+        return Math.Round(subtotal * _taxRate, 2, MidpointRounding.AwayFromZero);
+    }
+}
+
