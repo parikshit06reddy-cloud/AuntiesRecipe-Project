@@ -155,6 +155,14 @@ else
         }
         else
         {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="small text-muted">
+                    Showing @GetRangeStart()-@GetRangeEnd() of @_historyTotalCount
+                </div>
+                <div class="small text-muted">
+                    Page @_historyFilter.Page of @(_historyTotalPages == 0 ? 1 : _historyTotalPages)
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-striped align-middle">
                     <thead>
@@ -184,6 +192,10 @@ else
                     </tbody>
                 </table>
             </div>
+            <div class="d-flex gap-2 justify-content-end mt-2">
+                <button class="btn btn-outline-success btn-sm" type="button" disabled="@(_historyFilter.Page <= 1)" @onclick="PreviousHistoryPageAsync">Previous</button>
+                <button class="btn btn-outline-success btn-sm" type="button" disabled="@(_historyFilter.Page >= _historyTotalPages)" @onclick="NextHistoryPageAsync">Next</button>
+            </div>
         }
     }
 }
@@ -192,6 +204,8 @@ else
     private bool _loading = true;
     private string? _error;
     private IReadOnlyList<OrderSummaryDto> _orders = Array.Empty<OrderSummaryDto>();
+    private int _historyTotalCount;
+    private int _historyTotalPages;
     private string _mainTab = "active";
     private string _statusTab = "todo";
     private readonly string[] _statusOptions = ["Placed", "Preparing", "ReadyForPickup", "Completed", "Cancelled"];
@@ -229,12 +243,37 @@ else
     private async Task ApplyHistoryFiltersAsync()
     {
         _mainTab = "history";
+        _historyFilter.Page = 1;
         await LoadOrdersAsync();
     }
 
     private async Task ResetHistoryFiltersAsync()
     {
         _historyFilter = new HistoryFilterModel();
+        _historyTotalCount = 0;
+        _historyTotalPages = 0;
+        await LoadOrdersAsync();
+    }
+
+    private async Task PreviousHistoryPageAsync()
+    {
+        if (_historyFilter.Page <= 1)
+        {
+            return;
+        }
+
+        _historyFilter.Page -= 1;
+        await LoadOrdersAsync();
+    }
+
+    private async Task NextHistoryPageAsync()
+    {
+        if (_historyFilter.Page >= _historyTotalPages)
+        {
+            return;
+        }
+
+        _historyFilter.Page += 1;
         await LoadOrdersAsync();
     }
 
@@ -262,8 +301,9 @@ else
         _error = null;
         try
         {
-            _orders = _mainTab == "history"
-                ? await OrderService.GetOrderHistoryForAdminAsync(new AdminOrderHistoryFilterDto(
+            if (_mainTab == "history")
+            {
+                var history = await OrderService.GetOrderHistoryForAdminAsync(new AdminOrderHistoryFilterDto(
                     _historyFilter.PickupName,
                     _historyFilter.PickupPhone,
                     _historyFilter.TokenNumber,
@@ -271,8 +311,18 @@ else
                     _historyFilter.ToDateUtc,
                     _historyFilter.Status,
                     _historyFilter.Page,
-                    _historyFilter.PageSize))
-                : await OrderService.GetOrdersByStatusForAdminAsync(_statusTab);
+                    _historyFilter.PageSize));
+                _orders = history.Items;
+                _historyTotalCount = history.TotalCount;
+                _historyTotalPages = history.TotalPages;
+                _historyFilter.Page = history.Page;
+            }
+            else
+            {
+                _orders = await OrderService.GetOrdersByStatusForAdminAsync(_statusTab);
+                _historyTotalCount = 0;
+                _historyTotalPages = 0;
+            }
         }
         catch (Exception ex)
         {
@@ -286,4 +336,6 @@ else
 
     private string GetTabClass(string tab) => tab == _mainTab ? "btn btn-success" : "btn btn-outline-success";
     private string GetStatusClass(string tab) => tab == _statusTab ? "nav-link active" : "nav-link";
+    private int GetRangeStart() => _historyTotalCount == 0 ? 0 : ((_historyFilter.Page - 1) * _historyFilter.PageSize) + 1;
+    private int GetRangeEnd() => Math.Min(_historyTotalCount, _historyFilter.Page * _historyFilter.PageSize);
 }

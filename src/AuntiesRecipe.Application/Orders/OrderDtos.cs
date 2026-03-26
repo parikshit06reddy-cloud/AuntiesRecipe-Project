@@ -22,3 +22,10 @@ public sealed record AdminOrderHistoryFilterDto(
     string? Status,
     int Page = 1,
     int PageSize = 50);
+
+public sealed record PagedOrderHistoryDto(
+    IReadOnlyList<OrderSummaryDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

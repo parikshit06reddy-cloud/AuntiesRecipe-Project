@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuntiesRecipe.Infrastructure.Services;
 
-public sealed class OrderService(IDbContextFactory<AppDbContext> dbFactory) : IOrderService
+public sealed class OrderService(
+    IDbContextFactory<AppDbContext> dbFactory) : IOrderService
 {
     public async Task<IReadOnlyList<OrderSummaryDto>> GetOrdersForAdminAsync(CancellationToken cancellationToken = default)
     {
@@ -29,7 +30,7 @@ public sealed class OrderService(IDbContextFactory<AppDbContext> dbFactory) : IO
         return await ProjectOrderSummaries(query).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<OrderSummaryDto>> GetOrderHistoryForAdminAsync(AdminOrderHistoryFilterDto filter, CancellationToken cancellationToken = default)
+    public async Task<PagedOrderHistoryDto> GetOrderHistoryForAdminAsync(AdminOrderHistoryFilterDto filter, CancellationToken cancellationToken = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var query = db.Orders.AsNoTracking().Include(o => o.Items).AsQueryable();
@@ -72,10 +73,13 @@ public sealed class OrderService(IDbContextFactory<AppDbContext> dbFactory) : IO
             _ => filter.PageSize
         };
 
-        return await ProjectOrderSummaries(query)
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling((double)totalCount / pageSize);
+        var items = await ProjectOrderSummaries(query)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+        return new PagedOrderHistoryDto(items, totalCount, page, pageSize, totalPages);
     }
 
     public async Task UpdateOrderStatusAsync(int orderId, string status, CancellationToken cancellationToken = default)

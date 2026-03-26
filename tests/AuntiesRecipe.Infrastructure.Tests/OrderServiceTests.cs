@@ -58,9 +58,11 @@ public sealed class OrderServiceTests
             Page: 1,
             PageSize: 1));
 
-        filtered.Should().HaveCount(1);
-        filtered[0].PickupName.Should().Be("Alice");
-        filtered[0].Status.Should().Be("Completed");
+        filtered.Items.Should().HaveCount(1);
+        filtered.Items[0].PickupName.Should().Be("Alice");
+        filtered.Items[0].Status.Should().Be("Completed");
+        filtered.TotalCount.Should().Be(2);
+        filtered.TotalPages.Should().Be(2);
     }
 
     [Fact]
