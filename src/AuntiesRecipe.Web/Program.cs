@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
+var imageStorageRoot = ImageStoragePathResolver.Resolve(app.Environment, app.Configuration);
+Directory.CreateDirectory(imageStorageRoot);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -58,6 +61,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(imageStorageRoot),
+    RequestPath = "/images"
+});
 app.UseAntiforgery();
 
 app.UseAuthentication();

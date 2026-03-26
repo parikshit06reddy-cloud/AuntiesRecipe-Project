@@ -7,10 +7,12 @@
 @using AuntiesRecipe.Application.Menu
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using AuntiesRecipe.Web.Services
 
 @inject IBusinessProfileService BusinessProfileService
 @inject IMenuService MenuService
 @inject IWebHostEnvironment Env
+@inject IConfiguration Configuration
 @inject IJSRuntime JS
 
 <PageTitle>Admin Manage</PageTitle>
@@ -541,7 +543,8 @@
             }
         }
 
-        var imageDir = Path.Combine(Env.WebRootPath, "images", folder);
+        var storageRoot = ImageStoragePathResolver.Resolve(Env, Configuration);
+        var imageDir = Path.Combine(storageRoot, folder);
         Directory.CreateDirectory(imageDir);
 
         var filename = $"{Guid.NewGuid():N}{ext}";
