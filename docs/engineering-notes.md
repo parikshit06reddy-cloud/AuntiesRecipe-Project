@@ -24,9 +24,17 @@
 - Admin history supports paging controls and bounded page-size.
 - Order filtering indexes were added for status/date/pickup lookups.
 
+## Observability Conventions
+
+- Use structured templates with identifiers, not concatenated strings.
+- Log operation boundaries for high-value flows:
+  - checkout start/completion
+  - admin history filter execution
+  - admin status transitions
+  - auth success/failure and safe redirects
+- Avoid logging secrets or raw credential inputs.
+
 ## Future Improvements
 
-- Add total-count metadata for paged history.
 - Add optimistic concurrency tokens for admin edits.
-- Add API-level endpoint tests for auth and admin flows.
 - Add smoke tests for deployed environment checks.

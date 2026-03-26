@@ -45,7 +45,11 @@ flowchart LR
   app --> domain[Domain Entities]
 ```
 
-Detailed notes are in `docs/architecture.md` and `docs/engineering-notes.md`.
+Detailed notes are in `docs/architecture.md` and `docs/engineering-notes.md`.  
+Architecture decisions are tracked in:
+- `docs/adr/ADR-001-service-boundary-split.md`
+- `docs/adr/ADR-002-sqlite-migrations-strategy.md`
+- `docs/adr/ADR-003-auth-endpoint-flow.md`
 
 ## Local Setup
 
@@ -92,8 +96,15 @@ Required GitHub secrets:
 - File uploads are validated for size, extension, MIME type, and image signature.
 - Runtime-uploaded image folders are git-ignored to avoid leaking local artifacts.
 
+## Observability Notes
+
+- Structured logs are emitted for:
+  - checkout start/completion with order/token metadata
+  - admin order history query filters + page metadata
+  - admin status update actions
+  - auth login/logout outcomes (without sensitive payloads)
+
 ## Known Trade-Offs
 
 - SQLite is used for easy local/dev portability.
-- Order history currently uses page + page size controls without total-count metadata.
 - Admin defaults exist for demo speed and should be overridden in real environments.

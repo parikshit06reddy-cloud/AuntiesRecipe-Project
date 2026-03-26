@@ -45,6 +45,8 @@
   - checkout creates order and clears cart
   - history filter behavior with paging
   - order status transitions
+  - auth endpoint redirect/safety behavior
+  - hosted app integration for admin order operations
 
 ## Query Optimization
 
