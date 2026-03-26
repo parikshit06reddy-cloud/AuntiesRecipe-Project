@@ -12,5 +12,6 @@ obj/
 # Runtime/admin uploaded files (keep repo clean for portfolio)
 src/AuntiesRecipe.Web/wwwroot/images/menu/
 src/AuntiesRecipe.Web/wwwroot/images/hero/
+src/AuntiesRecipe.Web/App_Data/
 !src/AuntiesRecipe.Web/wwwroot/images/hero.png
 !src/AuntiesRecipe.Web/wwwroot/images/hero.svg

@@ -3,7 +3,6 @@ using AuntiesRecipe.Infrastructure.Data;
 using AuntiesRecipe.Infrastructure.Identity;
 using AuntiesRecipe.Web.Components;
 using AuntiesRecipe.Web.Services;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +41,6 @@ builder.Services
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CartSessionService>();
-builder.Services.AddScoped<AuthenticationStateProvider, HttpContextAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddControllers();
@@ -53,6 +51,7 @@ builder.Services.AddRazorComponents()
 var app = builder.Build();
 var imageStorageRoot = ImageStoragePathResolver.Resolve(app.Environment, app.Configuration);
 Directory.CreateDirectory(imageStorageRoot);
+DefaultImageBootstrapper.EnsureSeedImages(app.Environment, app.Configuration);
 
 if (!app.Environment.IsDevelopment())
 {
