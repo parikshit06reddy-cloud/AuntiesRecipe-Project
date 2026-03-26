@@ -64,10 +64,10 @@
                     <AuthorizeView>
                         <Authorized>
                             <li class="nav-item">
-                                <a class="nav-link nav-link-icon" href="/api/auth/logout">
+                                <button class="nav-link nav-link-icon btn btn-link p-0 border-0" type="button" @onclick="Logout">
                                     <span class="nav-icon">🚪</span>
                                     <span>Logout</span>
-                                </a>
+                                </button>
                             </li>
                         </Authorized>
                         <NotAuthorized>
@@ -102,6 +102,12 @@
     private void ToggleMenu()
     {
         _menuOpen = !_menuOpen;
+    }
+
+    private void Logout()
+    {
+        _menuOpen = false;
+        Navigation.NavigateTo("/api/auth/logout", forceLoad: true);
     }
 
     public void Dispose()

@@ -18,10 +18,29 @@ public static class DefaultImageBootstrapper
         {
             var fileName = Path.GetFileName(sourceFile);
             var destinationFile = Path.Combine(destinationRoot, fileName);
+            CopyWithRetry(sourceFile, destinationFile);
+        }
+    }
 
-            if (!File.Exists(destinationFile))
+    private static void CopyWithRetry(string sourceFile, string destinationFile)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
             {
-                File.Copy(sourceFile, destinationFile, overwrite: false);
+                // Overwrite makes startup idempotent and avoids file-exists races
+                // when multiple app hosts start in parallel (CI integration tests).
+                File.Copy(sourceFile, destinationFile, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(50);
+            }
+            catch (UnauthorizedAccessException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(50);
             }
         }
     }
