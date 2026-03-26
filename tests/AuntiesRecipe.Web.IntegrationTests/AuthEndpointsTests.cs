@@ -28,6 +28,29 @@ public sealed class AuthEndpointsTests(CustomWebApplicationFactory factory) : IC
     }
 
     [Fact]
+    public async Task Login_WithValidCredentials_SetsAuthCookie()
+    {
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["usernameOrEmail"] = "admin.net",
+            ["password"] = "admin.password"
+        });
+
+        var response = await client.PostAsync("/api/auth/login", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.TryGetValues("Set-Cookie", out var cookies).Should().BeTrue();
+        cookies.Should().NotBeNull();
+        cookies.Should().Contain(cookie =>
+            cookie.Contains(".AspNetCore.Identity.Application", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Login_WithInvalidCredentials_RedirectsToError()
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
