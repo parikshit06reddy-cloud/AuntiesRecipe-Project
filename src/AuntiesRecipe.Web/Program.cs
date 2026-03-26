@@ -98,7 +98,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         var createResult = await userManager.CreateAsync(adminUser, adminPassword);
         if (!createResult.Succeeded)
         {
-            throw new InvalidOperationException($"Default admin creation failed: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
+            var duplicate = createResult.Errors.Any(e => e.Code.Contains("Duplicate", StringComparison.OrdinalIgnoreCase));
+            if (!duplicate)
+            {
+                throw new InvalidOperationException($"Default admin creation failed: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
+            }
+
+            adminUser = await userManager.FindByNameAsync(adminUserName)
+                ?? throw new InvalidOperationException($"Default admin creation failed: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
         }
     }
 
@@ -159,3 +166,5 @@ app.MapGet("/auth/logout", async (SignInManager<ApplicationUser> signInManager) 
 });
 
 app.Run();
+
+public partial class Program;
