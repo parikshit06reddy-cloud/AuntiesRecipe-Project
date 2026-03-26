@@ -38,12 +38,25 @@ The app demonstrates full-stack .NET delivery: customer ordering flows, admin op
 
 ```mermaid
 flowchart LR
-  ui[Web Blazor Components] --> app[Application Abstractions]
-  app --> infra[Infrastructure Services]
-  infra --> db[(SQLite via EF Core)]
-  infra --> identity[(Identity DbContext)]
-  app --> domain[Domain Entities]
+  subgraph web [Web Layer]
+    BlazorPages --> AppServiceInterfaces
+    ApiControllers --> AppServiceInterfaces
+  end
+  subgraph app [Application Layer]
+    AppServiceInterfaces --> AppServices
+    AppServices --> RepoInterfaces
+  end
+  subgraph infra [Infrastructure Layer]
+    RepoInterfaces --> EfRepositories
+    EfRepositories --> SQLite[(SQLite)]
+  end
 ```
+
+Enterprise layered pattern:
+- **Blazor pages** inject application service interfaces directly (standard for Blazor Server)
+- **API controllers** expose REST endpoints backed by the same application services
+- **Application services** orchestrate use-cases using repository abstractions
+- **EF repositories** handle all persistence concerns
 
 Detailed notes are in `docs/architecture.md` and `docs/engineering-notes.md`.  
 Architecture decisions are tracked in:

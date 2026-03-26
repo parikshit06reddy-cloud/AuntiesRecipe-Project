@@ -1,0 +1,71 @@
+---
+description: Infrastructure layer rules -- implements Application contracts using EF Core and external services
+globs: src/AuntiesRecipe.Infrastructure/**
+alwaysApply: false
+---
+
+# Infrastructure Layer -- AuntiesRecipe.Infrastructure
+
+The implementation layer. Provides concrete behavior for Application-layer contracts using EF Core, Identity, file I/O, and external SDKs.
+
+## Project References
+
+- `AuntiesRecipe.Application` -- to implement its interfaces
+- `AuntiesRecipe.Domain` -- to work with entities
+
+## NEVER Reference
+
+- `AuntiesRecipe.Web` -- Infrastructure must not know about the presentation layer
+
+## Allowed
+
+- Service implementations in `Services/` that implement `Application/Abstractions/I*Service`
+- EF Core DbContext(s) in `Data/`
+- EF Core migrations in `Migrations/`
+- Identity DbContext in `Identity/`
+- Seed data logic in `Data/SeedData.cs`
+- Fluent API entity configuration (replaces data annotations)
+- `DependencyInjection.cs` for registering all Infrastructure services
+
+## Conventions
+
+- **DbContextFactory pattern**: Inject `IDbContextFactory<AppDbContext>`, create short-lived contexts per operation. Required for Blazor Server circuit safety.
+- **AsNoTracking for reads**: All read-only queries must use `.AsNoTracking()`.
+- **Projection to DTOs**: Use LINQ `.Select()` to project to DTOs at the query level -- avoid materializing full entity graphs.
+- **Structured logging**: Use `ILogger<T>` with message templates (not string interpolation).
+- **One service per file**: `CartService.cs`, `OrderService.cs`, etc.
+
+## Examples
+
+```csharp
+// GOOD -- implements Application interface, uses factory pattern
+namespace AuntiesRecipe.Infrastructure.Services;
+
+public class CartService(
+    IDbContextFactory<AppDbContext> dbFactory,
+    ILogger<CartService> logger) : ICartService
+{
+    public async Task<CartDto?> GetCartAsync(string cartId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Carts
+            .AsNoTracking()
+            .Where(c => c.Id == cartId)
+            .Select(c => new CartDto( /* ... */ ))
+            .FirstOrDefaultAsync();
+    }
+}
+
+// BAD -- injecting scoped DbContext directly (unsafe in Blazor Server)
+public class CartService(AppDbContext db) : ICartService { }
+
+// BAD -- returning Domain entities to callers
+public async Task<Cart> GetCartAsync(string cartId) { }
+```
+
+## Adding a New Service Implementation
+
+1. Create `{Feature}Service.cs` in `Infrastructure/Services/`
+2. Implement the matching `I{Feature}Service` from Application
+3. Inject `IDbContextFactory<AppDbContext>` and `ILogger<T>`
+4. Register as `services.AddScoped<I{Feature}Service, {Feature}Service>()` in `DependencyInjection.cs`

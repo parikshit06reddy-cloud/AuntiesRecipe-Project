@@ -1,0 +1,64 @@
+---
+description: Application layer rules -- service contracts and DTOs only, references Domain
+globs: src/AuntiesRecipe.Application/**
+alwaysApply: false
+---
+
+# Application Layer -- AuntiesRecipe.Application
+
+The contract layer. Defines **what** the system can do without specifying **how**.
+
+## Project References
+
+- `AuntiesRecipe.Domain` -- ONLY allowed reference
+
+## Allowed
+
+- Service interfaces in `Abstractions/` (e.g., `ICartService`, `IOrderService`)
+- DTOs as `sealed record` types organized by feature folder (Cart/, Orders/, Menu/, Business/)
+- Mapping extension methods that convert Domain entities → DTOs (if kept static and pure)
+- Enums or constants that define application-level concerns (not domain-level)
+
+## Forbidden
+
+- Any concrete class that implements a service interface (those belong in Infrastructure)
+- `using Microsoft.EntityFrameworkCore` or any ORM reference
+- `using Microsoft.AspNetCore.*` or any web/HTTP reference
+- References to `AuntiesRecipe.Infrastructure` or `AuntiesRecipe.Web`
+- Direct I/O of any kind
+
+## Conventions
+
+- **One DTO file per feature folder**: `Cart/CartDtos.cs`, `Orders/OrderDtos.cs`, etc.
+- **Sealed records for DTOs**: Immutable, clear contracts.
+- **Interface naming**: `I{Feature}Service` in `Abstractions/`.
+- **Method signatures use DTOs**, not Domain entities, for inputs/outputs to higher layers.
+
+## Examples
+
+```csharp
+// GOOD -- clean interface contract
+namespace AuntiesRecipe.Application.Abstractions;
+
+public interface ICartService
+{
+    Task<CartDto?> GetCartAsync(string cartId);
+    Task AddItemAsync(string cartId, int menuItemId, int quantity);
+    Task<OrderSummaryDto> CheckoutAsync(string cartId, CheckoutRequestDto request);
+}
+
+// BAD -- leaking Infrastructure types
+using Microsoft.EntityFrameworkCore;
+
+public interface ICartService
+{
+    Task<CartDto?> GetCartAsync(string cartId, AppDbContext db);
+}
+```
+
+## Adding a New Service Contract
+
+1. Create `I{Feature}Service.cs` in `Application/Abstractions/`
+2. Create `{Feature}Dtos.cs` in `Application/{Feature}/` with sealed record DTOs
+3. Implement the interface in `Infrastructure/Services/{Feature}Service.cs`
+4. Register in `Infrastructure/DependencyInjection.cs`

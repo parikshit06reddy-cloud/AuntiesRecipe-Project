@@ -21,7 +21,7 @@ public sealed class AuthEndpointsTests(CustomWebApplicationFactory factory) : IC
             ["returnUrl"] = "/checkout"
         });
 
-        var response = await client.PostAsync("/auth/login", content);
+        var response = await client.PostAsync("/api/auth/login", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location?.OriginalString.Should().Be("/checkout");
@@ -41,7 +41,7 @@ public sealed class AuthEndpointsTests(CustomWebApplicationFactory factory) : IC
             ["password"] = "wrong-password"
         });
 
-        var response = await client.PostAsync("/auth/login", content);
+        var response = await client.PostAsync("/api/auth/login", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location?.OriginalString.Should().Be("/login?error=1");
@@ -62,7 +62,7 @@ public sealed class AuthEndpointsTests(CustomWebApplicationFactory factory) : IC
             ["returnUrl"] = "https://evil.example.com"
         });
 
-        var response = await client.PostAsync("/auth/login", content);
+        var response = await client.PostAsync("/api/auth/login", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location?.OriginalString.Should().Be("/");
@@ -76,7 +76,7 @@ public sealed class AuthEndpointsTests(CustomWebApplicationFactory factory) : IC
             AllowAutoRedirect = false
         });
 
-        var response = await client.GetAsync("/auth/logout");
+        var response = await client.GetAsync("/api/auth/logout");
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
         response.Headers.Location?.OriginalString.Should().Be("/");

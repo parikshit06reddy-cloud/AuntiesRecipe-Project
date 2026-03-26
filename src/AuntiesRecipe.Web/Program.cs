@@ -44,6 +44,8 @@ builder.Services.AddScoped<CartSessionService>();
 builder.Services.AddScoped<AuthenticationStateProvider, HttpContextAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
 
+builder.Services.AddControllers();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -124,51 +126,9 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 app.MapStaticAssets();
+app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
-app.MapPost("/auth/login", async (
-    [FromForm] string usernameOrEmail,
-    [FromForm] string password,
-    [FromForm] string? returnUrl,
-    UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager,
-    ILogger<Program> logger) =>
-{
-    var input = (usernameOrEmail ?? string.Empty).Trim();
-    var user = input.Contains('@')
-        ? await userManager.FindByEmailAsync(input)
-        : await userManager.FindByNameAsync(input);
-
-    if (user is null)
-    {
-        logger.LogWarning("Login failed: user not found for input {Input}", input);
-        return Results.Redirect("/login?error=1");
-    }
-
-    var result = await signInManager.PasswordSignInAsync(user, password, isPersistent: false, lockoutOnFailure: false);
-    if (!result.Succeeded)
-    {
-        logger.LogWarning("Login failed: invalid credentials for user {UserName}", user.UserName);
-        return Results.Redirect("/login?error=1");
-    }
-
-    if (string.IsNullOrWhiteSpace(returnUrl) || !Uri.TryCreate(returnUrl, UriKind.Relative, out _))
-    {
-        returnUrl = "/";
-    }
-
-    logger.LogInformation("Login succeeded for user {UserName}; redirecting to {ReturnUrl}", user.UserName, returnUrl);
-    return Results.Redirect(returnUrl);
-})
-.DisableAntiforgery();
-
-app.MapGet("/auth/logout", async (SignInManager<ApplicationUser> signInManager, ILogger<Program> logger) =>
-{
-    await signInManager.SignOutAsync();
-    logger.LogInformation("User logout completed.");
-    return Results.Redirect("/");
-});
 
 app.Run();
 

@@ -1,6 +1,8 @@
 using AuntiesRecipe.Application.Abstractions;
+using AuntiesRecipe.Application.Repositories;
+using AuntiesRecipe.Application.Services;
 using AuntiesRecipe.Infrastructure.Data;
-using AuntiesRecipe.Infrastructure.Services;
+using AuntiesRecipe.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,10 +19,15 @@ public static class DependencyInjection
         services.AddDbContextFactory<AppDbContext>(options =>
             options.UseSqlite(connectionString));
 
-        services.AddScoped<IMenuService, MenuService>();
-        services.AddScoped<ICartService, CartService>();
-        services.AddScoped<IOrderService, OrderService>();
-        services.AddScoped<IBusinessProfileService, BusinessProfileService>();
+        services.AddScoped<ICartRepository, CartRepository>();
+        services.AddScoped<IMenuRepository, MenuRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IBusinessProfileRepository, BusinessProfileRepository>();
+
+        services.AddScoped<ICartService, CartAppService>();
+        services.AddScoped<IMenuService, MenuAppService>();
+        services.AddScoped<IOrderService, OrderAppService>();
+        services.AddScoped<IBusinessProfileService, BusinessProfileAppService>();
 
         return services;
     }

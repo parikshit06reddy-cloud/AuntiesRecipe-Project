@@ -1,0 +1,73 @@
+---
+description: Web/Presentation layer rules -- Blazor UI, composition root, auth endpoints
+globs: src/AuntiesRecipe.Web/**
+alwaysApply: false
+---
+
+# Web / Presentation Layer -- AuntiesRecipe.Web
+
+The outermost layer. Hosts Blazor Server UI, the composition root (`Program.cs`), and minimal API auth endpoints.
+
+## Project References
+
+- `AuntiesRecipe.Application` -- for service interfaces and DTOs
+- `AuntiesRecipe.Infrastructure` -- ONLY for `DependencyInjection.AddInfrastructure()` wiring in `Program.cs`
+
+## Allowed
+
+- Blazor components and pages in `Components/`
+- Layout components in `Components/Layout/`
+- Web-specific services in `Services/` (e.g., `CartSessionService`, auth state provider)
+- Composition root (`Program.cs`): DI registration, middleware pipeline, DB migration triggers
+- Minimal API endpoints for auth flow
+- Static assets in `wwwroot/`
+
+## Forbidden
+
+- **Business logic in Razor components** -- extract to Application service interfaces
+- **Direct use of `AppDbContext`** in pages/components -- inject `I*Service` abstractions
+- **Direct use of Infrastructure types** in pages (except `Program.cs` for DI wiring)
+- **Domain entity binding** in Razor markup -- always use DTOs from Application
+
+## Conventions
+
+- Pages inject Application interfaces: `@inject IMenuService MenuService`
+- Pages NEVER inject `AppDbContext`, `CartService` (concrete), or any Infrastructure type
+- All data shown in UI comes through DTOs, never raw entities
+- Web-specific services (session, auth state) stay in `Web/Services/`
+- `Program.cs` is the ONLY file that touches Infrastructure directly
+
+## Examples
+
+```razor
+@* GOOD -- injects Application abstraction *@
+@inject IMenuService MenuService
+@inject ICartService CartService
+
+@code {
+    private List<CategoryMenuDto> categories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await MenuService.GetMenuAsync();
+    }
+}
+
+@* BAD -- injects Infrastructure concrete type *@
+@inject AppDbContext Db
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var items = await Db.MenuItems.ToListAsync();
+    }
+}
+```
+
+## Adding a New Page
+
+1. Create `{PageName}.razor` in `Web/Components/Pages/`
+2. Add `@page "/route"` directive
+3. Inject Application interfaces only (`@inject I*Service`)
+4. Bind to DTOs from Application, not Domain entities
+5. Add navigation link in `NavMenu.razor` if needed

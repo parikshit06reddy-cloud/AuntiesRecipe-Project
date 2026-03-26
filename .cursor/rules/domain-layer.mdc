@@ -1,0 +1,62 @@
+---
+description: Domain layer rules -- pure entities with zero external dependencies
+globs: src/AuntiesRecipe.Domain/**
+alwaysApply: false
+---
+
+# Domain Layer -- AuntiesRecipe.Domain
+
+The innermost layer. Contains **only** business entities, value objects, and enums. This project has ZERO project references and ZERO NuGet package references beyond the base SDK.
+
+## Allowed
+
+- Plain C# classes / records / structs for entities and value objects
+- Enums representing domain concepts (e.g., `OrderStatus`)
+- Navigation properties (typed as `ICollection<T>` or concrete `List<T>`)
+- Computed read-only properties derived from entity state
+- Simple domain validation inside entity constructors or methods
+
+## Forbidden
+
+- `using Microsoft.EntityFrameworkCore` or any EF Core attribute (`[Key]`, `[Required]`, `[Column]`, etc.)
+- `using System.ComponentModel.DataAnnotations` -- use Fluent API in Infrastructure instead
+- `using Microsoft.AspNetCore.*`
+- Any reference to Application, Infrastructure, or Web namespaces
+- Any I/O (file, network, database)
+- Static service locator patterns
+- Dependency injection (no constructor-injected services)
+
+## Examples
+
+```csharp
+// GOOD -- pure entity
+namespace AuntiesRecipe.Domain.Entities;
+
+public class Order
+{
+    public int Id { get; set; }
+    public string PickupName { get; set; } = string.Empty;
+    public OrderStatus Status { get; set; }
+    public List<OrderItem> Items { get; set; } = [];
+    public decimal Total => Items.Sum(i => i.LineTotal);
+}
+
+// BAD -- EF annotation leaking into Domain
+using System.ComponentModel.DataAnnotations;
+
+public class Order
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required, MaxLength(100)]
+    public string PickupName { get; set; } = string.Empty;
+}
+```
+
+## Adding a New Entity
+
+1. Create the class in `Domain/Entities/`
+2. Configure it via Fluent API in `Infrastructure/Data/AppDbContext.OnModelCreating`
+3. Add a `DbSet<T>` in `AppDbContext`
+4. Generate an EF Core migration from the Infrastructure project

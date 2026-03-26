@@ -1,6 +1,7 @@
 using AuntiesRecipe.Application.Orders;
+using AuntiesRecipe.Application.Services;
 using AuntiesRecipe.Domain.Entities;
-using AuntiesRecipe.Infrastructure.Services;
+using AuntiesRecipe.Infrastructure.Repositories;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -48,16 +49,13 @@ public sealed class OrderServiceTests
             await db.SaveChangesAsync();
         }
 
-        var service = new OrderService(factory, NullLogger<OrderService>.Instance);
+        var orderRepo = new OrderRepository(factory);
+        var service = new OrderAppService(orderRepo, NullLogger<OrderAppService>.Instance);
         var filtered = await service.GetOrderHistoryForAdminAsync(new AdminOrderHistoryFilterDto(
-            PickupName: "Alice",
-            PickupPhone: null,
-            TokenNumber: null,
+            PickupName: "Alice", PickupPhone: null, TokenNumber: null,
             FromDateUtc: new DateTime(2026, 03, 20, 0, 0, 0, DateTimeKind.Utc),
             ToDateUtc: new DateTime(2026, 03, 22, 0, 0, 0, DateTimeKind.Utc),
-            Status: "Completed",
-            Page: 1,
-            PageSize: 1));
+            Status: "Completed", Page: 1, PageSize: 1));
 
         filtered.Items.Should().HaveCount(1);
         filtered.Items[0].PickupName.Should().Be("Alice");
@@ -85,7 +83,8 @@ public sealed class OrderServiceTests
             await db.SaveChangesAsync();
         }
 
-        var service = new OrderService(factory, NullLogger<OrderService>.Instance);
+        var orderRepo = new OrderRepository(factory);
+        var service = new OrderAppService(orderRepo, NullLogger<OrderAppService>.Instance);
         await service.UpdateOrderStatusAsync(1, "Completed");
 
         await using var verifyDb = await factory.CreateDbContextAsync();

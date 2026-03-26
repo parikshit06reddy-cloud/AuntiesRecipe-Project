@@ -1,0 +1,40 @@
+---
+description: Enterprise layered architecture contract for the AuntiesRecipe solution -- enforced on every interaction
+alwaysApply: true
+---
+
+# Enterprise Layered Architecture -- AuntiesRecipe
+
+This solution follows a strict 4-layer Clean / Onion architecture. Every code change MUST respect the dependency direction below. **Violations are never acceptable.**
+
+## Layer Stack (inner → outer)
+
+```
+Domain  ←  Application  ←  Infrastructure  ←  Web (Presentation)
+```
+
+| Layer | Project | May Reference | NEVER References |
+|-------|---------|---------------|------------------|
+| Domain | `AuntiesRecipe.Domain` | *nothing* | Application, Infrastructure, Web, any NuGet beyond netstandard BCL |
+| Application | `AuntiesRecipe.Application` | Domain | Infrastructure, Web, EF Core, ASP.NET, any concrete framework |
+| Infrastructure | `AuntiesRecipe.Infrastructure` | Application, Domain | Web |
+| Web | `AuntiesRecipe.Web` | Application, Infrastructure (composition root only) | — |
+
+## Mandatory Rules
+
+1. **No upward references.** A lower layer must never `using` or `ProjectReference` a higher layer.
+2. **Domain is pure.** No framework NuGet packages, no `using Microsoft.*`, no static helpers that touch I/O.
+3. **Application defines contracts.** Service interfaces (`I*Service`) and DTOs live here. No concrete implementations.
+4. **Infrastructure implements contracts.** All EF Core, Identity, external SDK, and I/O code lives here.
+5. **Web is the composition root.** DI wiring, middleware, and Blazor UI. It consumes Application abstractions; it must not contain business logic or direct data access.
+6. **DTOs cross layer boundaries, entities do not.** Blazor pages/components must never bind directly to Domain entities.
+7. **New service?** Add the interface in `Application/Abstractions/`, the implementation in `Infrastructure/Services/`, and register it in `Infrastructure/DependencyInjection.cs`.
+8. **New entity?** Add it in `Domain/Entities/`, configure it in `Infrastructure/Data/AppDbContext.cs`, create a migration.
+9. **New page/component?** Place it in `Web/Components/Pages/` or `Web/Components/`. Inject only `Application` interfaces, never `Infrastructure` types directly.
+
+## Quick Checklist Before Every Change
+
+- [ ] Does this change add a new `using` for a namespace in a higher layer? **REJECT.**
+- [ ] Does a Domain entity now depend on EF Core annotations? **Move to Fluent API in Infrastructure.**
+- [ ] Does a Blazor page reference an Infrastructure type directly? **Inject the Application interface instead.**
+- [ ] Is business logic creeping into a Razor component? **Extract to an Application service.**
