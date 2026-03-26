@@ -287,24 +287,78 @@ public sealed class CartService : ICartService, IOrderService
     public async Task<IReadOnlyList<OrderSummaryDto>> GetOrdersForAdminAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        return await ProjectOrderSummaries(db.Orders.AsNoTracking().Include(o => o.Items)).ToListAsync(cancellationToken);
+    }
 
-        var rows = await db.Orders
-            .AsNoTracking()
-            .Include(o => o.Items)
-            .OrderByDescending(o => o.CreatedAtUtc)
-            .Select(o => new OrderSummaryDto(
-                o.Id,
-                o.CreatedAtUtc,
-                o.TokenDateUtc,
-                o.DailyTokenNumber,
-                o.PickupName,
-                o.PickupPhone,
-                o.Items.Select(i => new OrderItemDto(i.MenuItemId, i.MenuItemName, i.UnitPrice, i.Quantity)).ToList(),
-                o.Items.Sum(i => i.UnitPrice * i.Quantity),
-                o.Status.ToString()))
-            .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<OrderSummaryDto>> GetOrdersByStatusForAdminAsync(string statusBucket, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var query = db.Orders.AsNoTracking().Include(o => o.Items).AsQueryable();
+        query = statusBucket.ToLowerInvariant() switch
+        {
+            "todo" => query.Where(o => o.Status == OrderStatus.Placed),
+            "inprogress" => query.Where(o => o.Status == OrderStatus.Preparing || o.Status == OrderStatus.ReadyForPickup),
+            "completed" => query.Where(o => o.Status == OrderStatus.Completed),
+            _ => query
+        };
 
-        return rows;
+        return await ProjectOrderSummaries(query).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderSummaryDto>> GetOrderHistoryForAdminAsync(AdminOrderHistoryFilterDto filter, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var query = db.Orders.AsNoTracking().Include(o => o.Items).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.PickupName))
+        {
+            var name = filter.PickupName.Trim();
+            query = query.Where(o => o.PickupName.Contains(name));
+        }
+        if (!string.IsNullOrWhiteSpace(filter.PickupPhone))
+        {
+            var phone = filter.PickupPhone.Trim();
+            query = query.Where(o => o.PickupPhone.Contains(phone));
+        }
+        if (filter.TokenNumber is not null)
+        {
+            query = query.Where(o => o.DailyTokenNumber == filter.TokenNumber.Value);
+        }
+        if (filter.FromDateUtc is not null)
+        {
+            var from = filter.FromDateUtc.Value.Date;
+            query = query.Where(o => o.CreatedAtUtc >= from);
+        }
+        if (filter.ToDateUtc is not null)
+        {
+            var toExclusive = filter.ToDateUtc.Value.Date.AddDays(1);
+            query = query.Where(o => o.CreatedAtUtc < toExclusive);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<OrderStatus>(filter.Status, true, out var status))
+        {
+            query = query.Where(o => o.Status == status);
+        }
+
+        return await ProjectOrderSummaries(query).ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateOrderStatusAsync(int orderId, string status, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.TryParse<OrderStatus>(status, true, out var nextStatus))
+        {
+            throw new InvalidOperationException("Invalid order status.");
+        }
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order is null)
+        {
+            throw new InvalidOperationException("Order not found.");
+        }
+
+        order.Status = nextStatus;
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<OrderSummaryDto?> GetOrderByIdAsync(int orderId, CancellationToken cancellationToken = default)
@@ -359,5 +413,21 @@ public sealed class CartService : ICartService, IOrderService
 
         var idx = DateTime.UtcNow.DayOfYear % ids.Count;
         return ids[idx];
+    }
+
+    private static IQueryable<OrderSummaryDto> ProjectOrderSummaries(IQueryable<Order> query)
+    {
+        return query
+            .OrderByDescending(o => o.CreatedAtUtc)
+            .Select(o => new OrderSummaryDto(
+                o.Id,
+                o.CreatedAtUtc,
+                o.TokenDateUtc,
+                o.DailyTokenNumber,
+                o.PickupName,
+                o.PickupPhone,
+                o.Items.Select(i => new OrderItemDto(i.MenuItemId, i.MenuItemName, i.UnitPrice, i.Quantity)).ToList(),
+                o.Items.Sum(i => i.UnitPrice * i.Quantity),
+                o.Status.ToString()));
     }
 }

@@ -19,6 +19,10 @@ public sealed class BusinessProfileService(
         if (existing is not null)
         {
             return new BusinessProfileDto(
+                existing.BusinessName,
+                existing.Tagline,
+                existing.HeroImagePath,
+                existing.MapEmbedUrl,
                 existing.AboutText,
                 existing.AddressLine1,
                 existing.AddressLine2,
@@ -27,6 +31,10 @@ public sealed class BusinessProfileService(
         }
 
         return new BusinessProfileDto(
+            configuration["Business:Name"] ?? "Aunties Recipe",
+            configuration["Business:Tagline"] ?? "Mexican-style juices & daily specials",
+            configuration["Business:HeroImagePath"] ?? "/images/hero.png",
+            configuration["Business:MapEmbedUrl"],
             "This demo portfolio site shows a real-world style layout: landing content, a menu, cart, checkout, and admin order viewing.",
             configuration["Business:AddressLine1"] ?? "Street address here",
             configuration["Business:AddressLine2"] ?? "Aubrey, TX 76227",
@@ -45,6 +53,10 @@ public sealed class BusinessProfileService(
             db.BusinessProfiles.Add(existing);
         }
 
+        existing.BusinessName = profile.BusinessName.Trim();
+        existing.Tagline = profile.Tagline.Trim();
+        existing.HeroImagePath = profile.HeroImagePath.Trim();
+        existing.MapEmbedUrl = string.IsNullOrWhiteSpace(profile.MapEmbedUrl) ? null : profile.MapEmbedUrl.Trim();
         existing.AboutText = profile.AboutText.Trim();
         existing.AddressLine1 = profile.AddressLine1.Trim();
         existing.AddressLine2 = profile.AddressLine2.Trim();

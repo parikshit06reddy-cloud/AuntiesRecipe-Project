@@ -8,3 +8,9 @@ obj/
 *.db-shm
 *.db-wal
 .DS_Store
+
+# Runtime/admin uploaded files (keep repo clean for portfolio)
+src/AuntiesRecipe.Web/wwwroot/images/menu/
+src/AuntiesRecipe.Web/wwwroot/images/hero/
+!src/AuntiesRecipe.Web/wwwroot/images/hero.png
+!src/AuntiesRecipe.Web/wwwroot/images/hero.svg

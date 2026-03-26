@@ -85,6 +85,10 @@ public sealed class AppDbContext : DbContext
 
         modelBuilder.Entity<BusinessProfile>(entity =>
         {
+            entity.Property(e => e.BusinessName).HasMaxLength(160);
+            entity.Property(e => e.Tagline).HasMaxLength(300);
+            entity.Property(e => e.HeroImagePath).HasMaxLength(500);
+            entity.Property(e => e.MapEmbedUrl).HasMaxLength(1000);
             entity.Property(e => e.AboutText).HasMaxLength(1200);
             entity.Property(e => e.AddressLine1).HasMaxLength(200);
             entity.Property(e => e.AddressLine2).HasMaxLength(200);

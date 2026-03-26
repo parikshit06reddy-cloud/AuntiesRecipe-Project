@@ -102,6 +102,7 @@
 
 @code {
     private const decimal DailySpecialPrice = 7.99m;
+    private const string JuicesCategoryName = "Featured Elixirs & Juices";
 
     private string _businessName = "Aunties Recipe";
     private string _tagline = "Mexican-style juices & daily specials";
@@ -130,6 +131,10 @@
     protected override async Task OnInitializedAsync()
     {
         var profile = await BusinessProfileService.GetAsync();
+        _businessName = string.IsNullOrWhiteSpace(profile.BusinessName) ? _businessName : profile.BusinessName;
+        _tagline = string.IsNullOrWhiteSpace(profile.Tagline) ? _tagline : profile.Tagline;
+        _heroImagePath = string.IsNullOrWhiteSpace(profile.HeroImagePath) ? _heroImagePath : profile.HeroImagePath;
+        _mapEmbedUrl = string.IsNullOrWhiteSpace(profile.MapEmbedUrl) ? _mapEmbedUrl : profile.MapEmbedUrl;
         _aboutText = profile.AboutText;
         _addressLine1 = profile.AddressLine1;
         _addressLine2 = profile.AddressLine2;
@@ -137,7 +142,16 @@
         _email = profile.Email;
 
         var menu = await MenuService.GetMenuAsync();
-        var flat = menu.SelectMany(c => c.Items).OrderBy(i => i.Id).ToList();
+        var juices = menu
+            .FirstOrDefault(c => string.Equals(c.Name, JuicesCategoryName, StringComparison.OrdinalIgnoreCase))
+            ?.Items
+            .OrderBy(i => i.Id)
+            .ToList()
+            ?? new List<MenuItemDto>();
+
+        var flat = juices.Count > 0
+            ? juices
+            : menu.SelectMany(c => c.Items).OrderBy(i => i.Id).ToList();
 
         if (flat.Count > 0)
         {

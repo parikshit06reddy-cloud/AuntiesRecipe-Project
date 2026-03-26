@@ -19,38 +19,62 @@
             <div class="@(_menuOpen ? "collapse navbar-collapse show" : "collapse navbar-collapse")" id="mainNavbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Home</NavLink>
+                        <NavLink class="nav-link nav-link-icon" href="" Match="NavLinkMatch.All">
+                            <span class="nav-icon">🏠</span>
+                            <span>Home</span>
+                        </NavLink>
                     </li>
                     <li class="nav-item">
-                        <NavLink class="nav-link" href="menu">Menu</NavLink>
+                        <NavLink class="nav-link nav-link-icon" href="menu">
+                            <span class="nav-icon">📋</span>
+                            <span>Menu</span>
+                        </NavLink>
                     </li>
                     <li class="nav-item">
-                        <NavLink class="nav-link" href="cart">Cart</NavLink>
+                        <NavLink class="nav-link nav-link-icon" href="cart">
+                            <span class="nav-icon">🛒</span>
+                            <span>Cart</span>
+                        </NavLink>
                     </li>
                     <li class="nav-item">
-                        <NavLink class="nav-link" href="checkout">Checkout</NavLink>
+                        <NavLink class="nav-link nav-link-icon" href="checkout">
+                            <span class="nav-icon">💳</span>
+                            <span>Checkout</span>
+                        </NavLink>
                     </li>
                 </ul>
 
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <AuthorizeView Roles="Admin">
                         <li class="nav-item">
-                            <NavLink class="nav-link" href="admin/manage">Admin Manage</NavLink>
+                            <NavLink class="nav-link nav-link-icon" href="admin/manage">
+                                <span class="nav-icon">⚙️</span>
+                                <span>Admin Manage</span>
+                            </NavLink>
                         </li>
                         <li class="nav-item">
-                            <NavLink class="nav-link" href="admin/orders">Admin Orders</NavLink>
+                            <NavLink class="nav-link nav-link-icon" href="admin/orders">
+                                <span class="nav-icon">🧾</span>
+                                <span>Admin Orders</span>
+                            </NavLink>
                         </li>
                     </AuthorizeView>
 
                     <AuthorizeView>
                         <Authorized>
                             <li class="nav-item">
-                                <a class="nav-link" href="/auth/logout">Logout</a>
+                                <a class="nav-link nav-link-icon" href="/auth/logout">
+                                    <span class="nav-icon">🚪</span>
+                                    <span>Logout</span>
+                                </a>
                             </li>
                         </Authorized>
                         <NotAuthorized>
                             <li class="nav-item">
-                                <NavLink class="nav-link" href="login">Login</NavLink>
+                                <NavLink class="nav-link nav-link-icon" href="login">
+                                    <span class="nav-icon">👤</span>
+                                    <span>Login</span>
+                                </NavLink>
                             </li>
                         </NotAuthorized>
                     </AuthorizeView>

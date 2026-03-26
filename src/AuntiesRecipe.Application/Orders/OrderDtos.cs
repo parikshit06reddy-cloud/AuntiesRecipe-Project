@@ -12,3 +12,11 @@ public sealed record OrderSummaryDto(
     IReadOnlyList<OrderItemDto> Items,
     decimal Total,
     string Status);
+
+public sealed record AdminOrderHistoryFilterDto(
+    string? PickupName,
+    string? PickupPhone,
+    int? TokenNumber,
+    DateTime? FromDateUtc,
+    DateTime? ToDateUtc,
+    string? Status);

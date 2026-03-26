@@ -6,13 +6,18 @@
 @using AuntiesRecipe.Application.Business
 @using AuntiesRecipe.Application.Menu
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 
 @inject IBusinessProfileService BusinessProfileService
 @inject IMenuService MenuService
+@inject IWebHostEnvironment Env
 
 <PageTitle>Admin Manage</PageTitle>
 
-<h1 class="mb-3">Admin Manage</h1>
+<div class="simple-page-header menu-hero-header page-hero-header">
+    <h1 class="mb-2">Admin Manage</h1>
+    <p class="text-muted mb-0">Manage business profile, hero image, categories, and menu items.</p>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(_message))
 {
@@ -24,13 +29,33 @@
 }
 
 <div class="row g-4">
-    <div class="col-lg-6">
+    <div class="col-xl-6">
         <div class="card simple-card">
             <div class="card-body">
                 <h2 class="h5 mb-3">Home content</h2>
                 <EditForm Model="_profile" OnValidSubmit="SaveProfileAsync">
                     <DataAnnotationsValidator />
                     <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label class="form-label">Business name</label>
+                        <InputText class="form-control" @bind-Value="_profile.BusinessName" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tagline</label>
+                        <InputText class="form-control" @bind-Value="_profile.Tagline" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Hero background image (Home)</label>
+                        <InputFile OnChange="OnHeroImageFileChange" accept="image/*" class="form-control" />
+                        <div class="form-text">Max file size: 5 MB. Recommended dimensions: 1920 x 1080.</div>
+                        @if (!string.IsNullOrWhiteSpace(_profile.HeroImagePath))
+                        {
+                            <img src="@_profile.HeroImagePath" alt="Hero preview" class="rounded border mt-2" style="max-width: 100%; height: 140px; object-fit: cover;" />
+                        }
+                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">About the business</label>
@@ -57,19 +82,81 @@
                         <InputText class="form-control" @bind-Value="_profile.Email" />
                     </div>
 
-                    <button class="btn btn-primary" type="submit" disabled="@_savingProfile">Save details</button>
+                    <div class="mb-3">
+                        <label class="form-label">Map embed URL (optional)</label>
+                        <InputText class="form-control" @bind-Value="_profile.MapEmbedUrl" />
+                    </div>
+
+                    <button class="btn btn-success" type="submit" disabled="@_savingProfile">Save details</button>
                 </EditForm>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div class="col-xl-6">
+        <div class="card simple-card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">Category management</h2>
+                <EditForm Model="_newCategory" OnValidSubmit="AddCategoryAsync">
+                    <DataAnnotationsValidator />
+                    <div class="input-group mb-3">
+                        <InputText class="form-control" @bind-Value="_newCategory.Name" placeholder="New category name" />
+                        <button class="btn btn-success" type="submit" disabled="@_savingMenu">Add category</button>
+                    </div>
+                </EditForm>
+
+                @if (_categories.Count == 0)
+                {
+                    <div class="text-muted">No categories.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="text-center">Items</th>
+                                    <th style="width: 220px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cat in _categories)
+                                {
+                                    <tr>
+                                        <td>
+                                            <InputText class="form-control" @bind-Value="cat.Name" />
+                                        </td>
+                                        <td class="text-center">@cat.ItemCount</td>
+                                        <td class="text-end">
+                                            <button class="btn btn-outline-success btn-sm me-2" type="button" @onclick="() => RenameCategoryAsync(cat)" disabled="@_savingMenu">Rename</button>
+                                            <button class="btn btn-outline-danger btn-sm" type="button" @onclick="() => DeleteCategoryAsync(cat)" disabled="@_savingMenu">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
         <div class="card simple-card">
             <div class="card-body">
                 <h2 class="h5 mb-3">Add menu item</h2>
                 <EditForm Model="_newItem" OnValidSubmit="AddMenuItemAsync">
                     <DataAnnotationsValidator />
                     <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <InputSelect class="form-select" @bind-Value="_newItem.CategoryId">
+                            @foreach (var cat in _categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">Name</label>
@@ -84,6 +171,12 @@
                     <div class="mb-3">
                         <label class="form-label">Amount</label>
                         <InputNumber class="form-control" @bind-Value="_newItem.Price" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Image file</label>
+                        <InputFile OnChange="OnNewItemFileChange" accept="image/*" class="form-control" />
+                        <div class="form-text">Max file size: 5 MB. Recommended dimensions: 1200 x 800 (3:2 ratio).</div>
                     </div>
 
                     <button class="btn btn-success" type="submit" disabled="@_savingMenu">Add item</button>
@@ -106,16 +199,26 @@
                 <table class="table align-middle">
                     <thead>
                         <tr>
+                            <th style="min-width: 180px;">Category</th>
                             <th style="min-width: 180px;">Name</th>
                             <th style="min-width: 300px;">Description</th>
                             <th style="min-width: 120px;">Amount</th>
-                            <th style="width: 120px;"></th>
+                            <th style="min-width: 240px;">Image</th>
+                            <th style="width: 170px;"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in _menuItems)
                         {
                             <tr>
+                                <td>
+                                    <InputSelect class="form-select" @bind-Value="item.CategoryId">
+                                        @foreach (var cat in _categories)
+                                        {
+                                            <option value="@cat.Id">@cat.Name</option>
+                                        }
+                                    </InputSelect>
+                                </td>
                                 <td>
                                     <InputText class="form-control" @bind-Value="item.Name" />
                                 </td>
@@ -126,7 +229,26 @@
                                     <InputNumber class="form-control" @bind-Value="item.Price" />
                                 </td>
                                 <td>
-                                    <button class="btn btn-outline-primary btn-sm" @onclick="() => SaveMenuItemAsync(item)" disabled="@_savingMenu" type="button">Save</button>
+                                    @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                    {
+                                        <div class="small text-muted mb-1">Current image</div>
+                                        <img src="@item.ImageUrl" alt="@item.Name" style="width: 72px; height: 72px; object-fit: cover;" class="rounded border mb-2" />
+                                        <div class="mb-2">
+                                            <button class="btn btn-sm btn-outline-danger" type="button" @onclick="() => MarkImageForRemoval(item)">
+                                                Remove current image
+                                            </button>
+                                        </div>
+                                    }
+                                    else if (item.RemoveExistingImage)
+                                    {
+                                        <div class="small text-danger mb-2">Image will be removed when you click Save.</div>
+                                    }
+                                    <InputFile OnChange="(e) => OnEditItemFileChange(item.Id, e)" accept="image/*" class="form-control" />
+                                    <div class="form-text">Max 5 MB. Recommended: 1200 x 800 (3:2).</div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-success btn-sm me-2" @onclick="() => SaveMenuItemAsync(item)" disabled="@_savingMenu" type="button">Save</button>
+                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteMenuItemAsync(item)" disabled="@_savingMenu" type="button">Delete</button>
                                 </td>
                             </tr>
                         }
@@ -142,13 +264,25 @@
     private bool _savingMenu;
     private string? _error;
     private string? _message;
+    private IBrowserFile? _newItemImageFile;
+    private IBrowserFile? _heroImageFile;
+    private readonly Dictionary<int, IBrowserFile?> _editItemImageFiles = new();
 
     private BusinessProfileModel _profile = new();
     private NewMenuItemModel _newItem = new();
+    private NewCategoryModel _newCategory = new();
+    private List<EditableCategoryModel> _categories = new();
     private List<EditableMenuItemModel> _menuItems = new();
 
     private sealed class BusinessProfileModel
     {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string BusinessName { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Tagline { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.Required]
+        public string HeroImagePath { get; set; } = string.Empty;
+        public string? MapEmbedUrl { get; set; }
         [System.ComponentModel.DataAnnotations.Required]
         public string AboutText { get; set; } = string.Empty;
         [System.ComponentModel.DataAnnotations.Required]
@@ -164,18 +298,37 @@
     private sealed class NewMenuItemModel
     {
         [System.ComponentModel.DataAnnotations.Required]
+        public int CategoryId { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         [System.ComponentModel.DataAnnotations.Range(0.01, 10000)]
         public decimal Price { get; set; } = 15.99m;
     }
 
-    private sealed class EditableMenuItemModel
+    private sealed class NewCategoryModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class EditableCategoryModel
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+        public int ItemCount { get; set; }
+    }
+
+    private sealed class EditableMenuItemModel
+    {
+        public int Id { get; set; }
+        public int CategoryId { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal Price { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool RemoveExistingImage { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -188,6 +341,10 @@
         var profile = await BusinessProfileService.GetAsync();
         _profile = new BusinessProfileModel
         {
+            BusinessName = profile.BusinessName,
+            Tagline = profile.Tagline,
+            HeroImagePath = profile.HeroImagePath,
+            MapEmbedUrl = profile.MapEmbedUrl,
             AboutText = profile.AboutText,
             AddressLine1 = profile.AddressLine1,
             AddressLine2 = profile.AddressLine2,
@@ -195,9 +352,28 @@
             Email = profile.Email
         };
 
-        var items = await MenuService.GetFeaturedItemsForAdminAsync();
+        var categories = await MenuService.GetCategoriesForAdminAsync();
+        _categories = categories
+            .Select(c => new EditableCategoryModel { Id = c.Id, Name = c.Name, SortOrder = c.SortOrder, ItemCount = c.ItemCount })
+            .ToList();
+
+        if (_newItem.CategoryId == 0 && _categories.Count > 0)
+        {
+            _newItem.CategoryId = _categories[0].Id;
+        }
+
+        var menu = await MenuService.GetMenuAsync();
+        var items = menu.SelectMany(c => c.Items.Select(i => new { c.Id, Item = i })).ToList();
         _menuItems = items
-            .Select(i => new EditableMenuItemModel { Id = i.Id, Name = i.Name, Description = i.Description, Price = i.Price })
+            .Select(x => new EditableMenuItemModel
+            {
+                Id = x.Item.Id,
+                CategoryId = x.Id,
+                Name = x.Item.Name,
+                Description = x.Item.Description,
+                Price = x.Item.Price,
+                ImageUrl = x.Item.ImageUrl
+            })
             .ToList();
     }
 
@@ -208,7 +384,26 @@
         _savingProfile = true;
         try
         {
-            var dto = new BusinessProfileDto(_profile.AboutText, _profile.AddressLine1, _profile.AddressLine2, _profile.Phone, _profile.Email);
+            if (_heroImageFile is not null)
+            {
+                var heroPath = await SaveUploadedImageAsync(_heroImageFile, "hero");
+                if (!string.IsNullOrWhiteSpace(heroPath))
+                {
+                    _profile.HeroImagePath = heroPath;
+                }
+                _heroImageFile = null;
+            }
+
+            var dto = new BusinessProfileDto(
+                _profile.BusinessName,
+                _profile.Tagline,
+                _profile.HeroImagePath,
+                _profile.MapEmbedUrl,
+                _profile.AboutText,
+                _profile.AddressLine1,
+                _profile.AddressLine2,
+                _profile.Phone,
+                _profile.Email);
             await BusinessProfileService.UpdateAsync(dto);
             _message = "Business details updated.";
         }
@@ -229,8 +424,14 @@
         _savingMenu = true;
         try
         {
-            await MenuService.AddFeaturedItemAsync(_newItem.Name, _newItem.Description, _newItem.Price);
+            var imageUrl = await SaveUploadedImageAsync(_newItemImageFile, "menu");
+            await MenuService.AddMenuItemAsync(_newItem.CategoryId, _newItem.Name, _newItem.Description, _newItem.Price, imageUrl);
             _newItem = new NewMenuItemModel();
+            if (_categories.Count > 0)
+            {
+                _newItem.CategoryId = _categories[0].Id;
+            }
+            _newItemImageFile = null;
             await LoadAllAsync();
             _message = "Menu item added.";
         }
@@ -251,8 +452,159 @@
         _savingMenu = true;
         try
         {
-            await MenuService.UpdateFeaturedItemAsync(item.Id, item.Name, item.Description, item.Price);
+            _editItemImageFiles.TryGetValue(item.Id, out var file);
+            var imageUrl = item.RemoveExistingImage ? null : item.ImageUrl;
+
+            if (file is not null)
+            {
+                imageUrl = await SaveUploadedImageAsync(file, "menu");
+            }
+
+            await MenuService.UpdateMenuItemAsync(item.Id, item.CategoryId, item.Name, item.Description, item.Price, imageUrl);
+            item.ImageUrl = imageUrl;
+            item.RemoveExistingImage = false;
+            _editItemImageFiles.Remove(item.Id);
             _message = $"Updated menu item: {item.Name}";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _savingMenu = false;
+        }
+    }
+
+    private void MarkImageForRemoval(EditableMenuItemModel item)
+    {
+        item.RemoveExistingImage = true;
+        item.ImageUrl = null;
+        _editItemImageFiles.Remove(item.Id);
+    }
+
+    private void OnNewItemFileChange(InputFileChangeEventArgs e)
+    {
+        _newItemImageFile = e.File;
+    }
+
+    private void OnHeroImageFileChange(InputFileChangeEventArgs e)
+    {
+        _heroImageFile = e.File;
+    }
+
+    private void OnEditItemFileChange(int itemId, InputFileChangeEventArgs e)
+    {
+        _editItemImageFiles[itemId] = e.File;
+    }
+
+    private async Task<string?> SaveUploadedImageAsync(IBrowserFile? file, string folder)
+    {
+        if (file is null)
+        {
+            return null;
+        }
+
+        const long maxFileSize = 5 * 1024 * 1024; // 5 MB
+        if (file.Size <= 0 || file.Size > maxFileSize)
+        {
+            throw new InvalidOperationException("Image file must be between 1 byte and 5 MB.");
+        }
+
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+        if (!allowed.Contains(ext))
+        {
+            throw new InvalidOperationException("Only .jpg, .jpeg, .png, .webp, and .gif images are allowed.");
+        }
+
+        var imageDir = Path.Combine(Env.WebRootPath, "images", folder);
+        Directory.CreateDirectory(imageDir);
+
+        var filename = $"{Guid.NewGuid():N}{ext}";
+        var fullPath = Path.Combine(imageDir, filename);
+
+        await using var read = file.OpenReadStream(maxFileSize);
+        await using var write = File.Create(fullPath);
+        await read.CopyToAsync(write);
+
+        return $"/images/{folder}/{filename}";
+    }
+
+    private async Task AddCategoryAsync()
+    {
+        _error = null;
+        _message = null;
+        _savingMenu = true;
+        try
+        {
+            await MenuService.AddCategoryAsync(_newCategory.Name);
+            _newCategory = new NewCategoryModel();
+            await LoadAllAsync();
+            _message = "Category added.";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _savingMenu = false;
+        }
+    }
+
+    private async Task RenameCategoryAsync(EditableCategoryModel category)
+    {
+        _error = null;
+        _message = null;
+        _savingMenu = true;
+        try
+        {
+            await MenuService.RenameCategoryAsync(category.Id, category.Name);
+            await LoadAllAsync();
+            _message = $"Category renamed: {category.Name}";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _savingMenu = false;
+        }
+    }
+
+    private async Task DeleteCategoryAsync(EditableCategoryModel category)
+    {
+        _error = null;
+        _message = null;
+        _savingMenu = true;
+        try
+        {
+            await MenuService.DeleteCategoryAsync(category.Id);
+            await LoadAllAsync();
+            _message = $"Category deleted: {category.Name}";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _savingMenu = false;
+        }
+    }
+
+    private async Task DeleteMenuItemAsync(EditableMenuItemModel item)
+    {
+        _error = null;
+        _message = null;
+        _savingMenu = true;
+        try
+        {
+            await MenuService.DeleteMenuItemAsync(item.Id);
+            await LoadAllAsync();
+            _message = $"Deleted menu item: {item.Name}";
         }
         catch (Exception ex)
         {

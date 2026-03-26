@@ -13,7 +13,7 @@
 
 <PageTitle>Checkout</PageTitle>
 
-<div class="simple-page-header">
+<div class="simple-page-header menu-hero-header page-hero-header">
     <h1 class="mb-2">Checkout</h1>
     <p class="text-muted mb-0">Enter pickup details and place your order.</p>
 </div>
@@ -30,7 +30,7 @@ else
 {
     <div class="row g-3">
         <div class="col-lg-7">
-            <div class="card simple-card mb-3">
+            <div class="card simple-card checkout-panel mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Pickup details</h5>
 
@@ -53,7 +53,7 @@ else
                             <InputTextArea class="form-control" @bind-Value="_request.Notes" />
                         </div>
 
-                        <button class="btn btn-primary w-100" disabled="@(_submitting || _cart.Items.Count == 0)" type="button" @onclick="PlaceOrderAsync">
+                        <button class="btn btn-success w-100 checkout-place-order-btn" disabled="@(_submitting || _cart.Items.Count == 0)" type="button" @onclick="PlaceOrderAsync">
                             @(_submitting ? "Placing order..." : "Place order")
                         </button>
                     </EditForm>
@@ -62,14 +62,14 @@ else
         </div>
 
         <div class="col-lg-5">
-            <div class="card simple-card">
+            <div class="card simple-card checkout-panel">
                 <div class="card-body">
                     <h5 class="card-title">Order summary</h5>
 
                     @if (_cart.Items.Count == 0)
                     {
                         <div class="alert alert-secondary mb-3">Your cart is empty.</div>
-                        <NavLink class="btn btn-outline-primary w-100" href="/menu">Go to menu</NavLink>
+                        <NavLink class="btn btn-outline-success w-100" href="/menu">Go to menu</NavLink>
                     }
                     else
                     {

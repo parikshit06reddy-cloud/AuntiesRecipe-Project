@@ -3,13 +3,26 @@
 @attribute [Authorize(Roles = "Admin")]
 
 @using AuntiesRecipe.Application.Abstractions
+@using AuntiesRecipe.Application.Orders
 @using Microsoft.AspNetCore.Authorization
 
 @inject IOrderService OrderService
 
 <PageTitle>Admin orders</PageTitle>
 
-<h1 class="mb-3">Admin Orders</h1>
+<div class="simple-page-header menu-hero-header page-hero-header">
+    <h1 class="mb-2">Admin Orders</h1>
+    <p class="text-muted mb-0">Track incoming orders and pickup details.</p>
+</div>
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <button type="button" class='@GetTabClass("active")' @onclick='() => ChangeMainTabAsync("active")'>Current Orders</button>
+    </li>
+    <li class="nav-item ms-2">
+        <button type="button" class='@GetTabClass("history")' @onclick='() => ChangeMainTabAsync("history")'>Order History</button>
+    </li>
+</ul>
 
 @if (_loading)
 {
@@ -21,48 +34,229 @@ else if (_error is not null)
 }
 else
 {
-    @if (_orders.Count == 0)
+    @if (_mainTab == "active")
     {
-        <div class="alert alert-secondary">No orders yet.</div>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <button type="button" class='@GetStatusClass("todo")' @onclick='() => ChangeStatusTabAsync("todo")'>To Do</button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class='@GetStatusClass("inprogress")' @onclick='() => ChangeStatusTabAsync("inprogress")'>In Progress</button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class='@GetStatusClass("completed")' @onclick='() => ChangeStatusTabAsync("completed")'>Completed</button>
+            </li>
+        </ul>
+
+        @if (_orders.Count == 0)
+        {
+            <div class="alert alert-secondary">No orders in this bucket.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Token</th>
+                            <th>Created (UTC)</th>
+                            <th>Pickup</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var o in _orders)
+                        {
+                            <tr>
+                                <td>@o.OrderId</td>
+                                <td>#@o.DailyTokenNumber</td>
+                                <td>@o.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@o.PickupName (@o.PickupPhone)</td>
+                                <td>@o.Total.ToString("C")</td>
+                                <td>
+                                    <span class="badge text-bg-secondary">@o.Status</span>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" value="@o.Status" @onchange="(e) => ChangeOrderStatusAsync(o.OrderId, e.Value?.ToString())">
+                                        @foreach (var option in _statusOptions)
+                                        {
+                                            <option value="@option">@option</option>
+                                        }
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
     else
     {
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Order #</th>
-                    <th>Created (UTC)</th>
-                    <th>Pickup</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var o in _orders)
-                {
-                    <tr>
-                        <td>@o.OrderId</td>
-                        <td>@o.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
-                        <td>@o.PickupName (@o.PickupPhone)</td>
-                        <td>@o.Total.ToString("C")</td>
-                        <td>@o.Status</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="card simple-card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Name</label>
+                        <InputText class="form-control" @bind-Value="_historyFilter.PickupName" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Phone</label>
+                        <InputText class="form-control" @bind-Value="_historyFilter.PickupPhone" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Token #</label>
+                        <InputNumber class="form-control" @bind-Value="_historyFilter.TokenNumber" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">From</label>
+                        <InputDate class="form-control" @bind-Value="_historyFilter.FromDateUtc" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">To</label>
+                        <InputDate class="form-control" @bind-Value="_historyFilter.ToDateUtc" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <InputSelect class="form-select" @bind-Value="_historyFilter.Status">
+                            <option value="">All</option>
+                            @foreach (var option in _statusOptions)
+                            {
+                                <option value="@option">@option</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-success me-2" type="button" @onclick="ApplyHistoryFiltersAsync">Apply Filters</button>
+                        <button class="btn btn-outline-success" type="button" @onclick="ResetHistoryFiltersAsync">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_orders.Count == 0)
+        {
+            <div class="alert alert-secondary">No history orders found for these filters.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Token</th>
+                            <th>Created (UTC)</th>
+                            <th>Pickup Name</th>
+                            <th>Phone</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var o in _orders)
+                        {
+                            <tr>
+                                <td>@o.OrderId</td>
+                                <td>#@o.DailyTokenNumber</td>
+                                <td>@o.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@o.PickupName</td>
+                                <td>@o.PickupPhone</td>
+                                <td>@o.Total.ToString("C")</td>
+                                <td>@o.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
 }
 
 @code {
     private bool _loading = true;
     private string? _error;
-    private IReadOnlyList<AuntiesRecipe.Application.Orders.OrderSummaryDto> _orders = Array.Empty<AuntiesRecipe.Application.Orders.OrderSummaryDto>();
+    private IReadOnlyList<OrderSummaryDto> _orders = Array.Empty<OrderSummaryDto>();
+    private string _mainTab = "active";
+    private string _statusTab = "todo";
+    private readonly string[] _statusOptions = ["Placed", "Preparing", "ReadyForPickup", "Completed", "Cancelled"];
+    private HistoryFilterModel _historyFilter = new();
+
+    private sealed class HistoryFilterModel
+    {
+        public string? PickupName { get; set; }
+        public string? PickupPhone { get; set; }
+        public int? TokenNumber { get; set; }
+        public DateTime? FromDateUtc { get; set; }
+        public DateTime? ToDateUtc { get; set; }
+        public string? Status { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadOrdersAsync();
+    }
+
+    private async Task ChangeMainTabAsync(string tab)
+    {
+        _mainTab = tab;
+        await LoadOrdersAsync();
+    }
+
+    private async Task ChangeStatusTabAsync(string tab)
+    {
+        _statusTab = tab;
+        await LoadOrdersAsync();
+    }
+
+    private async Task ApplyHistoryFiltersAsync()
+    {
+        _mainTab = "history";
+        await LoadOrdersAsync();
+    }
+
+    private async Task ResetHistoryFiltersAsync()
+    {
+        _historyFilter = new HistoryFilterModel();
+        await LoadOrdersAsync();
+    }
+
+    private async Task ChangeOrderStatusAsync(int orderId, string? nextStatus)
+    {
+        if (string.IsNullOrWhiteSpace(nextStatus))
+        {
+            return;
+        }
+
         try
         {
-            _orders = await OrderService.GetOrdersForAdminAsync();
+            await OrderService.UpdateOrderStatusAsync(orderId, nextStatus);
+            await LoadOrdersAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task LoadOrdersAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _orders = _mainTab == "history"
+                ? await OrderService.GetOrderHistoryForAdminAsync(new AdminOrderHistoryFilterDto(
+                    _historyFilter.PickupName,
+                    _historyFilter.PickupPhone,
+                    _historyFilter.TokenNumber,
+                    _historyFilter.FromDateUtc,
+                    _historyFilter.ToDateUtc,
+                    _historyFilter.Status))
+                : await OrderService.GetOrdersByStatusForAdminAsync(_statusTab);
         }
         catch (Exception ex)
         {
@@ -73,4 +267,7 @@ else
             _loading = false;
         }
     }
+
+    private string GetTabClass(string tab) => tab == _mainTab ? "btn btn-success" : "btn btn-outline-success";
+    private string GetStatusClass(string tab) => tab == _statusTab ? "nav-link active" : "nav-link";
 }
