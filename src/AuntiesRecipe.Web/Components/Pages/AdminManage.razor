@@ -11,6 +11,7 @@
 @inject IBusinessProfileService BusinessProfileService
 @inject IMenuService MenuService
 @inject IWebHostEnvironment Env
+@inject IJSRuntime JS
 
 <PageTitle>Admin Manage</PageTitle>
 
@@ -130,7 +131,7 @@
                                         <td class="text-center">@cat.ItemCount</td>
                                         <td class="text-end">
                                             <button class="btn btn-outline-success btn-sm me-2" type="button" @onclick="() => RenameCategoryAsync(cat)" disabled="@_savingMenu">Rename</button>
-                                            <button class="btn btn-outline-danger btn-sm" type="button" @onclick="() => DeleteCategoryAsync(cat)" disabled="@_savingMenu">Delete</button>
+                                            <button class="btn btn-outline-danger btn-sm" type="button" @onclick="() => ConfirmDeleteCategoryAsync(cat)" disabled="@_savingMenu">Delete</button>
                                         </td>
                                     </tr>
                                 }
@@ -248,7 +249,7 @@
                                 </td>
                                 <td>
                                     <button class="btn btn-outline-success btn-sm me-2" @onclick="() => SaveMenuItemAsync(item)" disabled="@_savingMenu" type="button">Save</button>
-                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteMenuItemAsync(item)" disabled="@_savingMenu" type="button">Delete</button>
+                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => ConfirmDeleteMenuItemAsync(item)" disabled="@_savingMenu" type="button">Delete</button>
                                 </td>
                             </tr>
                         }
@@ -505,6 +506,12 @@
             return null;
         }
 
+        var allowedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "menu", "hero" };
+        if (!allowedFolders.Contains(folder))
+        {
+            throw new InvalidOperationException("Invalid upload target.");
+        }
+
         const long maxFileSize = 5 * 1024 * 1024; // 5 MB
         if (file.Size <= 0 || file.Size > maxFileSize)
         {
@@ -516,6 +523,22 @@
         if (!allowed.Contains(ext))
         {
             throw new InvalidOperationException("Only .jpg, .jpeg, .png, .webp, and .gif images are allowed.");
+        }
+        var contentTypeAllowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/jpeg", "image/png", "image/webp", "image/gif"
+        };
+        if (string.IsNullOrWhiteSpace(file.ContentType) || !contentTypeAllowed.Contains(file.ContentType))
+        {
+            throw new InvalidOperationException("Unsupported image content type.");
+        }
+
+        await using (var sniff = file.OpenReadStream(maxFileSize))
+        {
+            if (!await HasSupportedImageSignatureAsync(sniff))
+            {
+                throw new InvalidOperationException("Uploaded file is not a valid image.");
+            }
         }
 
         var imageDir = Path.Combine(Env.WebRootPath, "images", folder);
@@ -529,6 +552,45 @@
         await read.CopyToAsync(write);
 
         return $"/images/{folder}/{filename}";
+    }
+
+    private static async Task<bool> HasSupportedImageSignatureAsync(Stream stream)
+    {
+        var header = new byte[12];
+        var read = await stream.ReadAsync(header);
+        if (read < 4)
+        {
+            return false;
+        }
+
+        // JPEG
+        if (header[0] == 0xFF && header[1] == 0xD8)
+        {
+            return true;
+        }
+        // PNG
+        if (read >= 8 &&
+            header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 &&
+            header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A)
+        {
+            return true;
+        }
+        // GIF87a / GIF89a
+        if (read >= 6 &&
+            header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 &&
+            header[3] == 0x38 && (header[4] == 0x37 || header[4] == 0x39) && header[5] == 0x61)
+        {
+            return true;
+        }
+        // WEBP: RIFF....WEBP
+        if (read >= 12 &&
+            header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
+            header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private async Task AddCategoryAsync()
@@ -613,6 +675,24 @@
         finally
         {
             _savingMenu = false;
+        }
+    }
+
+    private async Task ConfirmDeleteCategoryAsync(EditableCategoryModel category)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete category '{category.Name}' and all its items?");
+        if (confirmed)
+        {
+            await DeleteCategoryAsync(category);
+        }
+    }
+
+    private async Task ConfirmDeleteMenuItemAsync(EditableMenuItemModel item)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete menu item '{item.Name}'?");
+        if (confirmed)
+        {
+            await DeleteMenuItemAsync(item);
         }
     }
 }

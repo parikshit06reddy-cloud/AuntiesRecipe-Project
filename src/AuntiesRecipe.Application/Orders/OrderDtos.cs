@@ -19,4 +19,6 @@ public sealed record AdminOrderHistoryFilterDto(
     int? TokenNumber,
     DateTime? FromDateUtc,
     DateTime? ToDateUtc,
-    string? Status);
+    string? Status,
+    int Page = 1,
+    int PageSize = 50);

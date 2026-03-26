@@ -19,7 +19,7 @@ public static class DependencyInjection
 
         services.AddScoped<IMenuService, MenuService>();
         services.AddScoped<ICartService, CartService>();
-        services.AddScoped<IOrderService, CartService>();
+        services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IBusinessProfileService, BusinessProfileService>();
 
         return services;

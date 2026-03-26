@@ -82,9 +82,9 @@ await using (var scope = app.Services.CreateAsyncScope())
         await roleManager.CreateAsync(new IdentityRole("Admin"));
     }
 
-    const string adminUserName = "admin.net";
-    const string adminEmail = "admin.net@aunties.local";
-    const string adminPassword = "admin.password";
+    var adminUserName = builder.Configuration["AdminDefaults:UserName"] ?? "admin.net";
+    var adminEmail = builder.Configuration["AdminDefaults:Email"] ?? "admin.net@aunties.local";
+    var adminPassword = builder.Configuration["AdminDefaults:Password"] ?? "admin.password";
 
     var adminUser = await userManager.FindByNameAsync(adminUserName);
     if (adminUser is null)

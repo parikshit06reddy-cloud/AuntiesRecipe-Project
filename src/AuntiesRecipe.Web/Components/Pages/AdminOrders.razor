@@ -129,6 +129,18 @@ else
                             }
                         </InputSelect>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Page</label>
+                        <InputNumber class="form-control" @bind-Value="_historyFilter.Page" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Page size</label>
+                        <InputSelect class="form-select" @bind-Value="_historyFilter.PageSize">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </InputSelect>
+                    </div>
                     <div class="col-12">
                         <button class="btn btn-success me-2" type="button" @onclick="ApplyHistoryFiltersAsync">Apply Filters</button>
                         <button class="btn btn-outline-success" type="button" @onclick="ResetHistoryFiltersAsync">Reset</button>
@@ -193,6 +205,8 @@ else
         public DateTime? FromDateUtc { get; set; }
         public DateTime? ToDateUtc { get; set; }
         public string? Status { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
     }
 
     protected override async Task OnInitializedAsync()
@@ -255,7 +269,9 @@ else
                     _historyFilter.TokenNumber,
                     _historyFilter.FromDateUtc,
                     _historyFilter.ToDateUtc,
-                    _historyFilter.Status))
+                    _historyFilter.Status,
+                    _historyFilter.Page,
+                    _historyFilter.PageSize))
                 : await OrderService.GetOrdersByStatusForAdminAsync(_statusTab);
         }
         catch (Exception ex)

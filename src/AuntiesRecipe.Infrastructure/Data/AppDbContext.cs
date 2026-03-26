@@ -70,6 +70,9 @@ public sealed class AppDbContext : DbContext
             entity.Property(e => e.DailyTokenNumber);
 
             entity.HasIndex(e => new { e.TokenDateUtc, e.DailyTokenNumber }).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAtUtc);
+            entity.HasIndex(e => new { e.PickupName, e.PickupPhone });
 
             entity.HasMany(e => e.Items)
                 .WithOne(e => e.Order)
