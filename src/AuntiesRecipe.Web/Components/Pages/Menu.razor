@@ -8,6 +8,7 @@
 @inject IMenuService MenuService
 @inject ICartService CartService
 @inject CartSessionService CartSession
+@inject NavigationManager Navigation
 
 @code {
     private const decimal DailySpecialPrice = 7.99m;
@@ -70,6 +71,17 @@
     }
 
     private bool IsTodaySpecial(MenuItemDto item) => item.Id == _todaySpecialItemId;
+
+    private void OnMobileCategoryChanged(ChangeEventArgs e)
+    {
+        var hash = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo($"/menu{hash}", forceLoad: false);
+    }
 }
 
 <PageTitle>Aunties Recipe — Menu</PageTitle>
@@ -84,6 +96,17 @@ else if (_error is not null)
 }
 else
 {
+    <div class="menu-mobile-categories simple-card">
+        <label class="form-label mb-2 fw-semibold" for="mobile-category-select">Menu Categories</label>
+        <select id="mobile-category-select" class="form-select" @onchange="OnMobileCategoryChanged">
+            <option value="">Select a category</option>
+            @foreach (var cat in _menu)
+            {
+                <option value="@($"#cat-{cat.Id}")">@cat.Name</option>
+            }
+        </select>
+    </div>
+
     <div class="menu-layout">
         <aside class="menu-sidebar simple-card">
             <div class="menu-sidebar-header">Menu Categories</div>
