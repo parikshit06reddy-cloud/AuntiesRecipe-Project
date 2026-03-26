@@ -29,7 +29,6 @@ public sealed class CartService : ICartService
         }
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        _logger.LogInformation("Checkout started for cart {CartId} by user {UserId}", cartId, customerUserId ?? "anonymous");
 
         var cart = await db.Carts.FirstOrDefaultAsync(c => c.Id == cartId, cancellationToken);
         if (cart is null)
@@ -224,6 +223,7 @@ public sealed class CartService : ICartService
         }
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        _logger.LogInformation("Checkout started for cart {CartId} by user {UserId}", cartId, customerUserId ?? "anonymous");
 
         // Token resets daily (UTC day) and starts at 1.
         // For a demo app this is sufficient; the unique index on (TokenDateUtc, DailyTokenNumber)
