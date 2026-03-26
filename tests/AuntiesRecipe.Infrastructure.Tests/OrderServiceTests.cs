@@ -2,6 +2,7 @@ using AuntiesRecipe.Application.Orders;
 using AuntiesRecipe.Domain.Entities;
 using AuntiesRecipe.Infrastructure.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AuntiesRecipe.Infrastructure.Tests;
 
@@ -47,7 +48,7 @@ public sealed class OrderServiceTests
             await db.SaveChangesAsync();
         }
 
-        var service = new OrderService(factory);
+        var service = new OrderService(factory, NullLogger<OrderService>.Instance);
         var filtered = await service.GetOrderHistoryForAdminAsync(new AdminOrderHistoryFilterDto(
             PickupName: "Alice",
             PickupPhone: null,
@@ -84,7 +85,7 @@ public sealed class OrderServiceTests
             await db.SaveChangesAsync();
         }
 
-        var service = new OrderService(factory);
+        var service = new OrderService(factory, NullLogger<OrderService>.Instance);
         await service.UpdateOrderStatusAsync(1, "Completed");
 
         await using var verifyDb = await factory.CreateDbContextAsync();

@@ -132,7 +132,8 @@ app.MapPost("/auth/login", async (
     [FromForm] string password,
     [FromForm] string? returnUrl,
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) =>
+    SignInManager<ApplicationUser> signInManager,
+    ILogger<Program> logger) =>
 {
     var input = (usernameOrEmail ?? string.Empty).Trim();
     var user = input.Contains('@')
@@ -141,12 +142,14 @@ app.MapPost("/auth/login", async (
 
     if (user is null)
     {
+        logger.LogWarning("Login failed: user not found for input {Input}", input);
         return Results.Redirect("/login?error=1");
     }
 
     var result = await signInManager.PasswordSignInAsync(user, password, isPersistent: false, lockoutOnFailure: false);
     if (!result.Succeeded)
     {
+        logger.LogWarning("Login failed: invalid credentials for user {UserName}", user.UserName);
         return Results.Redirect("/login?error=1");
     }
 
@@ -155,13 +158,15 @@ app.MapPost("/auth/login", async (
         returnUrl = "/";
     }
 
+    logger.LogInformation("Login succeeded for user {UserName}; redirecting to {ReturnUrl}", user.UserName, returnUrl);
     return Results.Redirect(returnUrl);
 })
 .DisableAntiforgery();
 
-app.MapGet("/auth/logout", async (SignInManager<ApplicationUser> signInManager) =>
+app.MapGet("/auth/logout", async (SignInManager<ApplicationUser> signInManager, ILogger<Program> logger) =>
 {
     await signInManager.SignOutAsync();
+    logger.LogInformation("User logout completed.");
     return Results.Redirect("/");
 });
 

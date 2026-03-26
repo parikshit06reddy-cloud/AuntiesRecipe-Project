@@ -3,11 +3,13 @@ using AuntiesRecipe.Application.Orders;
 using AuntiesRecipe.Domain.Entities;
 using AuntiesRecipe.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AuntiesRecipe.Infrastructure.Services;
 
 public sealed class OrderService(
-    IDbContextFactory<AppDbContext> dbFactory) : IOrderService
+    IDbContextFactory<AppDbContext> dbFactory,
+    ILogger<OrderService> logger) : IOrderService
 {
     public async Task<IReadOnlyList<OrderSummaryDto>> GetOrdersForAdminAsync(CancellationToken cancellationToken = default)
     {
@@ -79,6 +81,17 @@ public sealed class OrderService(
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+        logger.LogInformation(
+            "Admin order history query executed. Name={PickupName} Phone={PickupPhone} Token={TokenNumber} From={FromDate} To={ToDate} Status={Status} Page={Page} PageSize={PageSize} Total={TotalCount}",
+            filter.PickupName,
+            filter.PickupPhone,
+            filter.TokenNumber,
+            filter.FromDateUtc?.ToString("yyyy-MM-dd"),
+            filter.ToDateUtc?.ToString("yyyy-MM-dd"),
+            filter.Status,
+            page,
+            pageSize,
+            totalCount);
         return new PagedOrderHistoryDto(items, totalCount, page, pageSize, totalPages);
     }
 
@@ -98,6 +111,7 @@ public sealed class OrderService(
 
         order.Status = nextStatus;
         await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Order status updated. OrderId={OrderId} NewStatus={Status}", orderId, nextStatus);
     }
 
     public async Task<OrderSummaryDto?> GetOrderByIdAsync(int orderId, CancellationToken cancellationToken = default)

@@ -3,19 +3,22 @@ using AuntiesRecipe.Application.Cart;
 using AuntiesRecipe.Domain.Entities;
 using AuntiesRecipe.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AuntiesRecipe.Infrastructure.Services;
 
 public sealed class CartService : ICartService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly ILogger<CartService> _logger;
 
     private const string FeaturedCategoryName = "Featured Elixirs & Juices";
     private const decimal DailySpecialPrice = 7.99m;
 
-    public CartService(IDbContextFactory<AppDbContext> dbFactory)
+    public CartService(IDbContextFactory<AppDbContext> dbFactory, ILogger<CartService> logger)
     {
         _dbFactory = dbFactory;
+        _logger = logger;
     }
 
     public async Task<CartDto> GetCartAsync(string cartId, CancellationToken cancellationToken = default)
@@ -26,6 +29,7 @@ public sealed class CartService : ICartService
         }
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        _logger.LogInformation("Checkout started for cart {CartId} by user {UserId}", cartId, customerUserId ?? "anonymous");
 
         var cart = await db.Carts.FirstOrDefaultAsync(c => c.Id == cartId, cancellationToken);
         if (cart is null)
@@ -279,6 +283,14 @@ public sealed class CartService : ICartService
 
         db.CartItems.RemoveRange(cartItemEntities);
         await db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Checkout completed for cart {CartId}. Created order {OrderId} token {TokenDate}/{TokenNumber} with {ItemCount} items",
+            cartId,
+            order.Id,
+            order.TokenDateUtc.ToString("yyyy-MM-dd"),
+            order.DailyTokenNumber,
+            cartItemEntities.Count);
 
         return order.Id;
     }

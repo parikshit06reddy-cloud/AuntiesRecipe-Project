@@ -2,6 +2,7 @@ using AuntiesRecipe.Application.Cart;
 using AuntiesRecipe.Domain.Entities;
 using AuntiesRecipe.Infrastructure.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AuntiesRecipe.Infrastructure.Tests;
 
@@ -27,7 +28,7 @@ public sealed class CartServiceTests
             await seedDb.SaveChangesAsync();
         }
 
-        var service = new CartService(factory);
+        var service = new CartService(factory, NullLogger<CartService>.Instance);
         await service.AddToCartAsync("cart-1", menuItemId: 1, quantity: 2);
 
         var orderId = await service.CheckoutAsync(
